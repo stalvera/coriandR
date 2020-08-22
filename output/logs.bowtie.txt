@@ -1,0 +1,2 @@
+[main_samview] fail to read the header from "-".
+samtools sort: failed to read header from "-"

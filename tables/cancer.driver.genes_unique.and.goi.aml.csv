@@ -1,0 +1,313 @@
+genes	discription
+ABL1	
+ACVR1	oncogene
+ACVR1B 	possible tsg
+ACVR2A	possible tsg
+AJUBA	tsg
+AKT1	oncogene
+ALB	possible tsg
+ALK	
+AMER1	possible tsg
+APC	tsg
+APOB	possible tsg
+AR	
+ARAF	
+ARHGAP35	tsg
+ARID1A	tsg
+ARID2	possible tsg
+ARID5B	possible tsg
+ASXL1	possible tsg
+ASXL2	possible tsg
+ATF7IP	possible tsg
+ATM	tsg
+ATR	possible tsg
+ATRX	tsg
+ATXN3	possible tsg
+AXIN1	tsg
+AXIN2	possible tsg
+B2M	possible tsg
+BAP1	possible tsg
+BCL2	
+BCL2L11	
+BCOR	possible oncogene
+BRAF	oncogene
+BRCA1	tsg
+BRCA2	possible tsg
+BRD7	tsg
+BTG2	possible tsg
+CACNA1A	possible oncogene
+CARD11	possible oncogene
+CASP8	tsg
+CBFB	possible tsg
+CBWD3	
+CCND1	possible oncogene
+CD70	possible tsg
+CD79B	oncogene
+CDH1	tsg
+CDK12	tsg
+CDK4	oncogene
+CDKN1A	tsg
+CDKN1B	possible tsg
+CDKN2A	possible tsg
+CDKN2C	possible tsg
+CEBPA	possible oncogene
+CHD3	possible tsg
+CHD4	oncogene
+CHD8	tsg
+CHEK2	possible tsg
+CIC	possible tsg
+CNBD1	oncogene
+COL5A1	oncogene
+CREB3L3	possible tsg
+CREBBP	tsg
+CSDE1	tsg
+CTCF	possible tsg
+CTNNB1	oncogene
+CTNND1	tsg
+CUL1	oncogene
+CUL3	tsg
+CYLD	possible tsg
+CYSLTR2	oncogene
+DACH1	oncogene
+DAZAP1	possible tsg
+DDX3X	tsg
+DHX9	possible oncogene
+DIAPH2	possible oncogene
+DICER1	possible oncogene
+DMD	oncogene
+DNMT3A	tsg
+EEF1A1	oncogene
+EEF2	tsg
+EGFR	oncogene
+EGR3	
+EIF1AX	possible oncogene
+ELF3	possible tsg
+EP300	tsg
+EPAS1	oncogene
+EPHA2	tsg
+EPHA3	
+ERBB2	possible oncogene
+ERBB3	oncogene
+ERBB4	oncogene
+ERCC2	possible oncogene
+ESR1	
+EZH2	
+FAM46D	oncogene
+FAT1	possible tsg
+FBXW7	possible oncogene
+FGFR1	
+FGFR2	oncogene
+FGFR3	oncogene
+FLNA	tsg
+FLT3	oncogene
+FOXA1	possible tsg
+FOXA2	possible tsg
+FOXQ1	possible tsg
+FUBP1	tsg
+GABRA6	
+GATA3	possible tsg
+GNA11	oncogene
+GNA13	oncogene
+GNAQ	oncogene
+GNAS	oncogene
+GPS2	possible tsg
+GRIN2D	possible oncogene
+GTF2I	oncogene
+H3F3A	possible oncogene
+H3F3C	
+HGF	
+HIST1H1C	
+HIST1H1E	possible oncogene
+HLA-A	tsg
+HLA-B	tsg
+HRAS	oncogene
+HUWE1	possible tsg
+IDH1	oncogene
+IDH2	oncogene
+IL6ST	possible tsg
+IL7R	
+INPPL1	possible tsg
+IRF2	tsg
+IRF6	possible tsg
+JAK1	tsg
+JAK2	
+JAK3	
+KANSL1	tsg
+KDM5C	tsg
+KDM6A	tsg
+KEAP1	possible tsg
+KEL	
+KIF1A	tsg
+KIT	oncogene
+KLF5	possible oncogene
+KMT2A	tsg
+KMT2B	tsg
+KMT2C	tsg
+KMT2D	tsg
+KRAS	oncogene
+KRT222	possible tsg
+LATS1	tsg
+LATS2	tsg
+LEMD2	
+LZTR1	possible oncogene
+MACF1	possible oncogene
+MAP2K1	oncogene
+MAP2K4	tsg
+MAP3K1	tsg
+MAP3K4	possible tsg
+MAPK1	oncogene
+MAX	oncogene
+MECOM	possible oncogene
+MED12	oncogene
+MEN1	tsg
+MET	possible tsg
+MGA	tsg
+MGMT	
+MLH1	
+MSH2	
+MSH3	possible oncogene
+MSH6	tsg
+MTOR	possible oncogene
+MUC6	possible tsg
+MYC	oncogene
+MYCN	oncogene
+MYD88	oncogene
+MYH9	oncogene
+NCOR1	tsg
+NF1	tsg
+NF2	tsg
+NFE2L2	oncogene
+NIPBL	tsg
+NOTCH1	tsg
+NOTCH2	
+NPM1	oncogene
+NRAS	possible tsg
+NSD1	tsg
+NUP133	possible tsg
+NUP93	possible tsg
+PAX5	
+PBRM1	tsg
+PCBP1	oncogene
+PDGFRA	possible oncogene
+PDS5B	tsg
+PGR	possible tsg
+PHF6	possible tsg
+PIK3CA	possible oncogene
+PIK3CB	
+PIK3CG	possible oncogene
+PIK3R1	possible oncogene
+PIK3R2	oncogene
+PIM1	oncogene
+PLCB4	oncogene
+PLCG1	oncogene
+PLXNB2	possible oncogene
+PMS1	possible oncogene
+PMS2	possible tsg
+POLE	
+POLQ	
+POLRMT	oncogene
+PPM1D	
+PPP2R1A	oncogene
+PPP6C	oncogene
+PRKAR1A	tsg
+PSIP1	tsg
+PTCH1	tsg
+PTEN	tsg
+PTMA	possible tsg
+PTPDC1	oncogene
+PTPN11	possible oncogene
+PTPRC	possible oncogene
+PTPRD	
+RAC1	oncogene
+RAD21	
+RAF1	
+RARA	
+RASA1	tsg
+RB1	tsg
+RBM10	tsg
+RET	oncogene
+RFC1	possible tsg
+RHEB	
+RHOA	oncogene
+RIT1	
+RNF111	tsg
+RNF43	tsg
+RPL22	
+RPL5	tsg
+RPS6KA3	tsg
+RQCD1	possible oncogene
+RRAS2	oncogene
+RUNX1	tsg
+RXRA	oncogene
+SCAF4	tsg
+SETBP1	possible oncogene
+SETD2	tsg
+SF1	possible oncogene
+SF3B1	oncogene
+SIN3A	tsg
+SMAD2	possible tsg
+SMAD4	oncogene
+SMARCA1	tsg
+SMARCA4	possible oncogene
+SMARCB1	possible oncogene
+SMC1A	oncogene
+SMC3	possible oncogene
+SOS1	oncogene
+SOX17	possible oncogene
+SOX9	possible tsg
+SPOP	oncogene
+SPTA1	possible tsg
+SPTAN1	tsg
+SRSF2	
+STAG2	tsg
+STK11	tsg
+TAF1	oncogene
+TBL1XR1	possible tsg
+TBX3	possible tsg
+TCEB1	possible tsg
+TCF12	possible tsg
+TCF7L2	tsg
+TET2	
+TGFBR2	possible tsg
+TGIF1	possible tsg
+THRAP3	tsg
+TLR4	
+TMSB4X	possible tsg
+TNFAIP3	tsg
+TP53	tsg
+TRAF3	tsg
+TSC1	tsg
+TSC2	tsg
+TXNIP	possible tsg
+U2AF1	oncogene
+UNCX	possible oncogene
+USP9X	tsg
+VHL	tsg
+WHSC1	oncogene
+WT1	possible oncogene
+XPO1	oncogene
+ZBTB20	possible tsg
+ZBTB7B	tsg
+ZC3H12A	
+ZCCHC12	oncogene
+ZFHX3	possible tsg
+ZFP36L1	possible tsg
+ZFP36L2	possible tsg
+ZMYM2	tsg
+ZMYM3	tsg
+ZNF133	oncogene
+ZNF750	possible tsg
+MDM2	
+CSF1R	
+FOXL2	
+HNF1A	
+MPL	
+ROS1	
+SRC	
+TERT	
+AURKA	
+CCNE1	
+DDR2	
+KDR	
+SMO	
+PDGFRB	

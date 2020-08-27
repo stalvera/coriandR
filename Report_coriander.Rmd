@@ -52,9 +52,11 @@ all_genes$end = as.integer(all_genes$end)
 ```{r echo = FALSE}
 stats = read.table("mapping.stats.tsv", stringsAsFactors = F)
 stats[nrow(stats) +1, ] = list(as.character("unique_mapped_reads"), sum(patient[ , 6]))
+stats[nrow(stats) +1, ] = list(as.character("patient ID"), patient_name)
+stats[nrow(stats) +1, ] = list(as.character("gender"), gender)
 
 library(knitr)
-kable(stats, col.names = NULL, align = "l")
+kable(stats, digits = 0, col.names = NULL, align = "l")
 ```
 
 

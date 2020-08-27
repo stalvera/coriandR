@@ -3,15 +3,15 @@
 # es dem CORIANDER so ohne Weiteres übergeben werden kann
 ###################################################################################################
 
-path.to.programm = "~/diss/CORIANDER/r.script.coriander"
-path.output = "~/diss/CORIANDER/r.script.coriander/tables"
-pon.table.name = "pon.marburg.tsv"
+path.to.programm = "/media/vera/big_data/coriandR"
+path.output = "/media/vera/big_data/coriandR/tables"
+pon.table.name = "pon.muenchen.tsv"
 
 
 setwd(path.to.programm)
-pon = read.table("./tables/work.pon.marburg.fc.tsv", header = TRUE, row.names = 1)
+pon = read.table("./tables/pon.muenchen.fc.tsv", header = TRUE, row.names = 1)
 # grep('.bam', colnames(pon))
-gender_pon = read.table("./tables/geschlechter.pon.marburg.csv",
+gender_pon = read.table("./tables/gender.muenchen.pon.tsv.csv",
                         header = TRUE, sep = ",", row.names = 1)
 
 

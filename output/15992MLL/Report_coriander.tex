@@ -1,0 +1,156 @@
+\documentclass[]{article}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\usepackage{fixltx2e} % provides \textsubscript
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else % if luatex or xelatex
+  \ifxetex
+    \usepackage{mathspec}
+  \else
+    \usepackage{fontspec}
+  \fi
+  \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
+\fi
+% use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+% use microtype if available
+\IfFileExists{microtype.sty}{%
+\usepackage{microtype}
+\UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\hypersetup{unicode=true,
+            pdftitle={Report coriandR},
+            pdfauthor={Koch V.},
+            pdfborder={0 0 0},
+            breaklinks=true}
+\urlstyle{same}  % don't use monospace font for urls
+\usepackage{longtable,booktabs}
+\usepackage{graphicx,grffile}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+\IfFileExists{parskip.sty}{%
+\usepackage{parskip}
+}{% else
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+}
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{0}
+% Redefines (sub)paragraphs to behave more like sections
+\ifx\paragraph\undefined\else
+\let\oldparagraph\paragraph
+\renewcommand{\paragraph}[1]{\oldparagraph{#1}\mbox{}}
+\fi
+\ifx\subparagraph\undefined\else
+\let\oldsubparagraph\subparagraph
+\renewcommand{\subparagraph}[1]{\oldsubparagraph{#1}\mbox{}}
+\fi
+
+%%% Use protect on footnotes to avoid problems with footnotes in titles
+\let\rmarkdownfootnote\footnote%
+\def\footnote{\protect\rmarkdownfootnote}
+
+%%% Change title format to be more compact
+\usepackage{titling}
+
+% Create subtitle command for use in maketitle
+\providecommand{\subtitle}[1]{
+  \posttitle{
+    \begin{center}\large#1\end{center}
+    }
+}
+
+\setlength{\droptitle}{-2em}
+
+  \title{Report coriandR}
+    \pretitle{\vspace{\droptitle}\centering\huge}
+  \posttitle{\par}
+    \author{Koch V.}
+    \preauthor{\centering\large\emph}
+  \postauthor{\par}
+      \predate{\centering\large\emph}
+  \postdate{\par}
+    \date{27 August, 2020}
+
+
+\begin{document}
+\maketitle
+
+\begin{verbatim}
+## [1] "Patient 15992MLL"
+\end{verbatim}
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+\endhead
+unique\_reads & 1935274\tabularnewline
+average\_length & 136.881\tabularnewline
+unique\_mapped\_reads & 3687605\tabularnewline
+patient ID & 15992MLL\tabularnewline
+gender & M\tabularnewline
+\bottomrule
+\end{longtable}
+
+\hypertarget{karyotype}{%
+\subsection{Karyotype:}\label{karyotype}}
+
+NA
+
+\hypertarget{genes-from-aml-guidline-2016-or-cancer-driver-genes-paper}{%
+\subsection{Genes from AMl Guidline 2016 or cancer driver genes
+paper:}\label{genes-from-aml-guidline-2016-or-cancer-driver-genes-paper}}
+
+\begin{longtable}[]{@{}llllll@{}}
+\toprule
+id & symbol & chr & start & end & aberration\tabularnewline
+\midrule
+\endhead
+\bottomrule
+\end{longtable}
+
+\hypertarget{all-genome}{%
+\subsection{All genome:}\label{all-genome}}
+
+\hypertarget{all-chromosomes}{%
+\subsection{All chromosomes:}\label{all-chromosomes}}
+
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-1.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-2.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-3.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-4.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-5.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-6.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-7.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-8.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-9.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-10.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-11.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-12.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-13.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-14.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-15.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-16.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-17.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-18.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-19.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-20.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-21.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-22.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-23.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-24.pdf}
+
+
+\end{document}

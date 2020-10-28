@@ -1,0 +1,660 @@
+\documentclass[]{article}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\usepackage{fixltx2e} % provides \textsubscript
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else % if luatex or xelatex
+  \ifxetex
+    \usepackage{mathspec}
+  \else
+    \usepackage{fontspec}
+  \fi
+  \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
+\fi
+% use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+% use microtype if available
+\IfFileExists{microtype.sty}{%
+\usepackage{microtype}
+\UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\hypersetup{unicode=true,
+            pdftitle={Report coriandR},
+            pdfauthor={Koch V.},
+            pdfborder={0 0 0},
+            breaklinks=true}
+\urlstyle{same}  % don't use monospace font for urls
+\usepackage{longtable,booktabs}
+\usepackage{graphicx,grffile}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+\IfFileExists{parskip.sty}{%
+\usepackage{parskip}
+}{% else
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+}
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{0}
+% Redefines (sub)paragraphs to behave more like sections
+\ifx\paragraph\undefined\else
+\let\oldparagraph\paragraph
+\renewcommand{\paragraph}[1]{\oldparagraph{#1}\mbox{}}
+\fi
+\ifx\subparagraph\undefined\else
+\let\oldsubparagraph\subparagraph
+\renewcommand{\subparagraph}[1]{\oldsubparagraph{#1}\mbox{}}
+\fi
+
+%%% Use protect on footnotes to avoid problems with footnotes in titles
+\let\rmarkdownfootnote\footnote%
+\def\footnote{\protect\rmarkdownfootnote}
+
+%%% Change title format to be more compact
+\usepackage{titling}
+
+% Create subtitle command for use in maketitle
+\providecommand{\subtitle}[1]{
+  \posttitle{
+    \begin{center}\large#1\end{center}
+    }
+}
+
+\setlength{\droptitle}{-2em}
+
+  \title{Report coriandR}
+    \pretitle{\vspace{\droptitle}\centering\huge}
+  \posttitle{\par}
+    \author{Koch V.}
+    \preauthor{\centering\large\emph}
+  \postauthor{\par}
+      \predate{\centering\large\emph}
+  \postdate{\par}
+    \date{28 Oktober, 2020}
+
+
+\begin{document}
+\maketitle
+
+\begin{verbatim}
+## [1] "Patient 35717.median"
+\end{verbatim}
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+\endhead
+unique\_reads & 2666744\tabularnewline
+average\_length & 147.79\tabularnewline
+unique\_mapped\_reads & 5105050\tabularnewline
+patient ID & 35717.median\tabularnewline
+gender & M\tabularnewline
+\bottomrule
+\end{longtable}
+
+\hypertarget{karyotype}{%
+\subsection{Karyotype:}\label{karyotype}}
+
+add(chr1)(p36.33p32.2)
+
+add(chr1)(p13.3p13.3)
+
+add(chr1)(q21.3q23.1)
+
+add(chr1)(q32.1q32.1)
+
+add(chr1)(q42.12q42.2)
+
+add(chr10)(p15.2p15.1)
+
+add(chr10)(p11.23p11.23)
+
+add(chr10)(q22.1q22.3)
+
+add(chr10)(q23.33q24.32)
+
+add(chr10)(q26.11q26.3)
+
+add(chr11)(p15.5p15.4)
+
+add(chr11)(p15.1p15.1)
+
+add(chr11)(p11.2p11.2)
+
+add(chr11)(q12.2q13.5)
+
+del(chr11)(q14.3q14.3)
+
+del(chr11)(q22.3q22.3)
+
+add(chr11)(q23.3q23.3)
+
+add(chr11)(q24.2q24.2)
+
+add(chr12)(p13.33p13.31)
+
+add(chr12)(q13.12q13.3)
+
+del(chr12)(q14.1q14.1)
+
+del(chr12)(q21.2q21.2)
+
+add(chr12)(q24.11q24.33)
+
+add(chr13)(p11.1q11)
+
+add(chr13)(q12.3q12.3)
+
+del(chr13)(q31.3q31.3)
+
+del(chr13)(q33.3q33.3)
+
+add(chr13)(q34q34)
+
+add(chr14)(q11.1q11.2)
+
+add(chr14)(q24.1q24.3)
+
+add(chr14)(q32.11q32.33)
+
+add(chr15)(q12q13.1)
+
+add(chr15)(q15.1q15.2)
+
+add(chr15)(q21.1q21.1)
+
+add(chr15)(q22.2q22.31)
+
+add(chr15)(q23q26.1)
+
+add(chr16)(p13.3p13.3)
+
+add(chr16)(p13.13p13.12)
+
+add(chr16)(p12.3p11.2)
+
+add(chr16)(q12.1q13)
+
+add(chr16)(q22.1q22.2)
+
+add(chr16)(q23.1q24.3)
+
+add(chr17)(p13.3p11.2)
+
+add(chr17)(q12q23.1)
+
+add(chr17)(q24.2q24.2)
+
+add(chr17)(q25.1q25.3)
+
+add(chr18)(p11.21p11.21)
+
+del(chr18)(p11.1q11.1)
+
+add(chr18)(q21.1q21.1)
+
+add(chr19)(p13.3p13.11)
+
+add(chr19)(q12q13.43)
+
+add(chr2)(p25.1p25.1)
+
+add(chr2)(p23.3p23.2)
+
+add(chr2)(p13.3p13.2)
+
+add(chr2)(p11.2p11.2)
+
+add(chr2)(q11.1q11.2)
+
+add(chr2)(q12.3q12.3)
+
+add(chr2)(q14.2q14.2)
+
+add(chr2)(q21.1q21.1)
+
+del(chr2)(q22.3q22.3)
+
+del(chr2)(q24.2q24.2)
+
+del(chr2)(q32.3q32.3)
+
+del(chr2)(q34q34)
+
+add(chr2)(q35q35)
+
+add(chr2)(q37.1q37.3)
+
+add(chr20)(p13p13)
+
+add(chr20)(p11.21p11.1)
+
+add(chr20)(q11.22q12)
+
+add(chr20)(q13.12q13.2)
+
+add(chr20)(q13.32q13.33)
+
+add(chr21)(p12q22.2)
+
+del(chr21)(q22.3q22.3)
+
+add(chr22)(p11.2p11.2)
+
+add(chr22)(q11.1q13.33)
+
+add(chr3)(p25.3p25.1)
+
+del(chr3)(p24.1p24.1)
+
+add(chr3)(p22.2p22.1)
+
+add(chr3)(p21.31p14.3)
+
+del(chr3)(q13.11q13.11)
+
+del(chr3)(q13.13q13.13)
+
+add(chr3)(q21.2q22.1)
+
+add(chr3)(q29q29)
+
+add(chr4)(p16.3p16.1)
+
+add(chr4)(p11p11)
+
+del(chr4)(q13.2q13.2)
+
+del(chr4)(q22.1q22.2)
+
+add(chr5)(p15.33p15.33)
+
+del(chr5)(q11.2q11.2)
+
+del(chr5)(q15q15)
+
+del(chr5)(q21.2q21.2)
+
+add(chr5)(q31.1q31.3)
+
+add(chr5)(q33.1q33.1)
+
+add(chr5)(q35.1q35.3)
+
+add(chr6)(p21.33p21.33)
+
+add(chr6)(p21.31p21.1)
+
+del(chr6)(q16.3q16.3)
+
+del(chr6)(q24.1q24.1)
+
+add(chr6)(q25.1q25.1)
+
+add(chr6)(q25.3q25.3)
+
+add(chr7)(p22.3p22.1)
+
+add(chr7)(p13p12.3)
+
+add(chr7)(q11.23q11.23)
+
+add(chr7)(q22.1q22.1)
+
+add(chr7)(q32.3q32.3)
+
+add(chr7)(q34q34)
+
+add(chr7)(q36.1q36.3)
+
+add(chr8)(p21.3p21.3)
+
+add(chr8)(p21.1p21.1)
+
+del(chr8)(q12.3q12.3)
+
+del(chr8)(q21.13q21.13)
+
+del(chr8)(q21.3q21.3)
+
+del(chr8)(q23.1q23.1)
+
+add(chr8)(q24.3q24.3)
+
+del(chr9)(p21.3p21.3)
+
+add(chr9)(p13.3p13.3)
+
+add(chr9)(q21.33q21.33)
+
+add(chr9)(q22.2q22.32)
+
+add(chr9)(q31.3q31.3)
+
+add(chr9)(q33.2q34.3)
+
+\hypertarget{genes-from-aml-guidline-2016-or-cancer-driver-genes-paper}{%
+\subsection{Genes from AMl Guidline 2016 or cancer driver genes
+paper:}\label{genes-from-aml-guidline-2016-or-cancer-driver-genes-paper}}
+
+\begin{longtable}[]{@{}rrlrlrl@{}}
+\toprule
+id & sym & bol chr & sta & rt end & abe & rration\tabularnewline
+\midrule
+\endhead
+237 & ENSG00000116251 & RPL22 & chr1 & 6185020 & 6209389 &
+amp\tabularnewline
+381 & ENSG00000198793 & MTOR & chr1 & 11106535 & 11262507 &
+amp\tabularnewline
+882 & ENSG00000117713 & ARID1A & chr1 & 26693236 & 26782104 &
+amp\tabularnewline
+1176 & ENSG00000054118 & THRAP3 & chr1 & 36224432 & 36305357 &
+amp\tabularnewline
+1201 & ENSG00000163874 & ZC3H12A & chr1 & 37474580 & 37484377 &
+amp\tabularnewline
+1258 & ENSG00000127603 & MACF1 & chr1 & 39081316 & 39487177 &
+amp\tabularnewline
+1397 & ENSG00000117400 & MPL & chr1 & 43337849 & 43352772 &
+amp\tabularnewline
+3387 & ENSG00000160685 & ZBTB7B & chr1 & 155002630 & 155018522 &
+amp\tabularnewline
+3442 & ENSG00000143622 & RIT1 & chr1 & 155897808 & 155911404 &
+amp\tabularnewline
+4392 & ENSG00000163435 & ELF3 & chr1 & 202007945 & 202017183 &
+amp\tabularnewline
+4441 & ENSG00000159388 & BTG2 & chr1 & 203305491 & 203309602 &
+amp\tabularnewline
+4895 & ENSG00000163041 & H3F3A & chr1 & 226061851 & 226072007 &
+amp\tabularnewline
+5860 & ENSG00000119772 & DNMT3A & chr2 & 25227855 & 25342590 &
+amp\tabularnewline
+5866 & ENSG00000143970 & ASXL2 & chr2 & 25733753 & 25878516 &
+amp\tabularnewline
+5981 & ENSG00000171094 & ALK & chr2 & 29192774 & 29921586 &
+amp\tabularnewline
+6626 & ENSG00000169564 & PCBP1 & chr2 & 70087454 & 70089203 &
+amp\tabularnewline
+9407 & ENSG00000187514 & PTMA & chr2 & 231706895 & 231713541 &
+amp\tabularnewline
+9614 & ENSG00000130294 & KIF1A & chr2 & 240713761 & 240821036 &
+amp\tabularnewline
+9796 & ENSG00000134086 & VHL & chr3 & 10141008 & 10152220 &
+amp\tabularnewline
+9848 & ENSG00000132155 & RAF1 & chr3 & 12583601 & 12664226 &
+amp\tabularnewline
+10180 & ENSG00000172936 & MYD88 & chr3 & 38138478 & 38143022 &
+amp\tabularnewline
+10405 & ENSG00000181555 & SETD2 & chr3 & 47016429 & 47163967 &
+amp\tabularnewline
+10504 & ENSG00000067560 & RHOA & chr3 & 49359145 & 49412998 &
+amp\tabularnewline
+10630 & ENSG00000163930 & BAP1 & chr3 & 52401008 & 52410008 &
+amp\tabularnewline
+10638 & ENSG00000163939 & PBRM1 & chr3 & 52545352 & 52685917 &
+amp\tabularnewline
+15551 & ENSG00000164362 & TERT & chr5 & 1253147 & 1295047 &
+amp\tabularnewline
+17886 & ENSG00000182578 & CSF1R & chr5 & 150053291 & 150113372 &
+amp\tabularnewline
+17889 & ENSG00000113721 & PDGFRB & chr5 & 150113839 & 150155872 &
+amp\tabularnewline
+18309 & ENSG00000165671 & NSD1 & chr5 & 177133025 & 177300215 &
+amp\tabularnewline
+19285 & ENSG00000234745 & HLA-B & chr6 & 31269491 & 31357188 &
+amp\tabularnewline
+19497 & ENSG00000161904 & LEMD2 & chr6 & 33771202 & 33789130 &
+amp\tabularnewline
+19600 & ENSG00000137193 & PIM1 & chr6 & 37170152 & 37175428 &
+amp\tabularnewline
+21587 & ENSG00000164853 & UNCX & chr7 & 1232872 & 1237326 &
+amp\tabularnewline
+21626 & ENSG00000198286 & CARD11 & chr7 & 2906141 & 3043945 &
+amp\tabularnewline
+21681 & ENSG00000122512 & PMS2 & chr7 & 5970925 & 6009106 &
+amp\tabularnewline
+21696 & ENSG00000136238 & RAC1 & chr7 & 6374527 & 6403967 &
+amp\tabularnewline
+22481 & ENSG00000146648 & EGFR & chr7 & 55019017 & 55211628 &
+amp\tabularnewline
+22928 & ENSG00000263001 & GTF2I & chr7 & 74650231 & 74760692 &
+amp\tabularnewline
+24436 & ENSG00000106615 & RHEB & chr7 & 151466012 & 151520120 &
+amp\tabularnewline
+24449 & ENSG00000055609 & KMT2C & chr7 & 152134922 & 152436005 &
+amp\tabularnewline
+27499 & ENSG00000179388 & EGR3 & chr8 & 22687659 & 22693480 &
+amp\tabularnewline
+29133 & ENSG00000136997 & MYC & chr8 & 127735434 & 127742951 &
+amp\tabularnewline
+29607 & ENSG00000153707 & PTPRD & chr9 & 8314246 & 10612723 &
+del\tabularnewline
+31438 & ENSG00000197694 & SPTAN1 & chr9 & 128552558 & 128633662 &
+amp\tabularnewline
+31516 & ENSG00000097007 & ABL1 & chr9 & 130713946 & 130887675 &
+amp\tabularnewline
+31558 & ENSG00000165699 & TSC1 & chr9 & 132891348 & 132946874 &
+amp\tabularnewline
+31611 & ENSG00000186350 & RXRA & chr9 & 134317098 & 134440585 &
+amp\tabularnewline
+31616 & ENSG00000130635 & COL5A1 & chr9 & 134641774 & 134844843 &
+amp\tabularnewline
+31674 & ENSG00000148400 & NOTCH1 & chr9 & 136494433 & 136546048 &
+amp\tabularnewline
+31832 & ENSG00000174775 & HRAS & chr11 & 532242 & 537287 &
+amp\tabularnewline
+31870 & ENSG00000184956 & MUC6 & chr11 & 1012823 & 1036718 &
+amp\tabularnewline
+33142 & ENSG00000198561 & CTNND1 & chr11 & 57753243 & 57819546 &
+amp\tabularnewline
+33487 & ENSG00000168066 & SF1 & chr11 & 64764606 & 64778786 &
+amp\tabularnewline
+33490 & ENSG00000133895 & MEN1 & chr11 & 64803510 & 64811294 &
+amp\tabularnewline
+33764 & ENSG00000110092 & CCND1 & chr11 & 69641087 & 69654474 &
+amp\tabularnewline
+33855 & ENSG00000165458 & INPPL1 & chr11 & 72223701 & 72239147 &
+amp\tabularnewline
+34754 & ENSG00000118058 & KMT2A & chr11 & 118436464 & 118526832 &
+amp\tabularnewline
+37379 & ENSG00000170430 & MGMT & chr10 & 129467190 & 129770983 &
+amp\tabularnewline
+37655 & ENSG00000111642 & CHD4 & chr12 & 6570082 & 6614524 &
+amp\tabularnewline
+38282 & ENSG00000188375 & H3F3C & chr12 & 31791185 & 31792298 &
+amp\tabularnewline
+38568 & ENSG00000167548 & KMT2D & chr12 & 49018975 & 49059774 &
+amp\tabularnewline
+38922 & ENSG00000065361 & ERBB3 & chr12 & 56076799 & 56103505 &
+amp\tabularnewline
+39027 & ENSG00000135446 & CDK4 & chr12 & 57747727 & 57756013 &
+amp\tabularnewline
+39959 & ENSG00000179295 & PTPN11 & chr12 & 112418351 & 112509913 &
+amp\tabularnewline
+40154 & ENSG00000135100 & HNF1A & chr12 & 120978543 & 121002512 &
+amp\tabularnewline
+40502 & ENSG00000177084 & POLE & chr12 & 132623753 & 132687365 &
+amp\tabularnewline
+42295 & ENSG00000129474 & AJUBA & chr14 & 22971177 & 22982551 &
+amp\tabularnewline
+43128 & ENSG00000185650 & ZFP36L1 & chr14 & 68787660 & 68796253 &
+amp\tabularnewline
+43559 & ENSG00000066427 & ATXN3 & chr14 & 92044496 & 92106621 &
+amp\tabularnewline
+43627 & ENSG00000100697 & DICER1 & chr14 & 95086228 & 95158010 &
+amp\tabularnewline
+43977 & ENSG00000142208 & AKT1 & chr14 & 104769349 & 104795751 &
+amp\tabularnewline
+44899 & ENSG00000174197 & MGA & chr15 & 41621224 & 41773081 &
+amp\tabularnewline
+45508 & ENSG00000169032 & MAP2K1 & chr15 & 66386817 & 66492312 &
+amp\tabularnewline
+45751 & ENSG00000169375 & SIN3A & chr15 & 75369379 & 75455842 &
+amp\tabularnewline
+46151 & ENSG00000182054 & IDH2 & chr15 & 90083045 & 90102504 &
+amp\tabularnewline
+46467 & ENSG00000103126 & AXIN1 & chr16 & 287440 & 352723 &
+amp\tabularnewline
+46622 & ENSG00000103197 & TSC2 & chr16 & 2047967 & 2089491 &
+amp\tabularnewline
+46775 & ENSG00000005339 & CREBBP & chr16 & 3725054 & 3880726 &
+amp\tabularnewline
+47953 & ENSG00000166164 & BRD7 & chr16 & 50313487 & 50368934 &
+amp\tabularnewline
+47966 & ENSG00000083799 & CYLD & chr16 & 50742050 & 50801935 &
+amp\tabularnewline
+48110 & ENSG00000102900 & NUP93 & chr16 & 56730118 & 56850286 &
+amp\tabularnewline
+48288 & ENSG00000067955 & CBFB & chr16 & 67028984 & 67101058 &
+amp\tabularnewline
+48327 & ENSG00000102974 & CTCF & chr16 & 67562467 & 67639177 &
+amp\tabularnewline
+48396 & ENSG00000039068 & CDH1 & chr16 & 68737292 & 68835541 &
+amp\tabularnewline
+49313 & ENSG00000132522 & GPS2 & chr17 & 7311324 & 7315564 &
+amp\tabularnewline
+49360 & ENSG00000141510 & TP53 & chr17 & 7661779 & 7687550 &
+amp\tabularnewline
+49370 & ENSG00000170004 & CHD3 & chr17 & 7884806 & 7912760 &
+amp\tabularnewline
+49580 & ENSG00000141027 & NCOR1 & chr17 & 16029157 & 16218185 &
+amp\tabularnewline
+50158 & ENSG00000196712 & NF1 & chr17 & 31094927 & 31382116 &
+amp\tabularnewline
+50479 & ENSG00000167258 & CDK12 & chr17 & 39461486 & 39564907 &
+amp\tabularnewline
+50489 & ENSG00000141736 & ERBB2 & chr17 & 39687914 & 39730426 &
+amp\tabularnewline
+50518 & ENSG00000131759 & RARA & chr17 & 40309180 & 40357643 &
+amp\tabularnewline
+50539 & ENSG00000213424 & KRT222 & chr17 & 40654665 & 40665181 &
+amp\tabularnewline
+51040 & ENSG00000121067 & SPOP & chr17 & 49598884 & 49678163 &
+amp\tabularnewline
+51230 & ENSG00000108375 & RNF43 & chr17 & 58352500 & 58417595 &
+amp\tabularnewline
+51474 & ENSG00000120063 & GNA13 & chr17 & 65009289 & 65056740 &
+amp\tabularnewline
+51479 & ENSG00000168646 & AXIN2 & chr17 & 65528563 & 65561648 &
+amp\tabularnewline
+51776 & ENSG00000161547 & SRSF2 & chr17 & 76734115 & 76737374 &
+amp\tabularnewline
+52042 & ENSG00000141579 & ZNF750 & chr17 & 82829434 & 82840022 &
+amp\tabularnewline
+52799 & ENSG00000175387 & SMAD2 & chr18 & 47808957 & 47931146 &
+amp\tabularnewline
+53921 & ENSG00000171456 & ASXL1 & chr20 & 32358330 & 32439319 &
+amp\tabularnewline
+54566 & ENSG00000087460 & GNAS & chr20 & 58839718 & 58911192 &
+amp\tabularnewline
+54791 & ENSG00000099821 & POLRMT & chr19 & 617221 & 633537 &
+amp\tabularnewline
+54831 & ENSG00000118046 & STK11 & chr19 & 1177558 & 1228435 &
+amp\tabularnewline
+54850 & ENSG00000071626 & DAZAP1 & chr19 & 1407569 & 1435687 &
+amp\tabularnewline
+54949 & ENSG00000088256 & GNA11 & chr19 & 3094362 & 3123999 &
+amp\tabularnewline
+54995 & ENSG00000167658 & EEF2 & chr19 & 3976056 & 3985463 &
+amp\tabularnewline
+55002 & ENSG00000060566 & CREB3L3 & chr19 & 4153631 & 4173054 &
+amp\tabularnewline
+55117 & ENSG00000125726 & CD70 & chr19 & 6583183 & 6604103 &
+amp\tabularnewline
+55320 & ENSG00000079999 & KEAP1 & chr19 & 10486125 & 10503558 &
+amp\tabularnewline
+55345 & ENSG00000127616 & SMARCA4 & chr19 & 10960825 & 11079426 &
+amp\tabularnewline
+55511 & ENSG00000141837 & CACNA1A & chr19 & 13206442 & 13633025 &
+amp\tabularnewline
+55745 & ENSG00000105639 & JAK3 & chr19 & 17824780 & 17848071 &
+amp\tabularnewline
+55762 & ENSG00000105647 & PIK3R2 & chr19 & 18153163 & 18170532 &
+amp\tabularnewline
+56102 & ENSG00000105173 & CCNE1 & chr19 & 29811991 & 29824312 &
+amp\tabularnewline
+56171 & ENSG00000245848 & CEBPA & chr19 & 33299934 & 33302534 &
+amp\tabularnewline
+56285 & ENSG00000272333 & KMT2B & chr19 & 35718019 & 35738878 &
+amp\tabularnewline
+56638 & ENSG00000079432 & CIC & chr19 & 42268537 & 42295797 &
+amp\tabularnewline
+56791 & ENSG00000104884 & ERCC2 & chr19 & 45349837 & 45370918 &
+amp\tabularnewline
+56882 & ENSG00000160007 & ARHGAP35 & chr19 & 46918676 & 47005077 &
+amp\tabularnewline
+56943 & ENSG00000105464 & GRIN2D & chr19 & 48394875 & 48444931 &
+amp\tabularnewline
+57240 & ENSG00000105568 & PPP2R1A & chr19 & 52190048 & 52229518 &
+amp\tabularnewline
+58538 & ENSG00000099949 & LZTR1 & chr22 & 20982269 & 20999032 &
+amp\tabularnewline
+58601 & ENSG00000100030 & MAPK1 & chr22 & 21754500 & 21867680 &
+amp\tabularnewline
+58779 & ENSG00000099956 & SMARCB1 & chr22 & 23786931 & 23838008 &
+amp\tabularnewline
+58935 & ENSG00000183765 & CHEK2 & chr22 & 28687743 & 28742422 &
+amp\tabularnewline
+58970 & ENSG00000186575 & NF2 & chr22 & 29603556 & 29698598 &
+amp\tabularnewline
+59171 & ENSG00000100345 & MYH9 & chr22 & 36281277 & 36388067 &
+amp\tabularnewline
+59365 & ENSG00000100393 & EP300 & chr22 & 41092592 & 41180077 &
+amp\tabularnewline
+59615 & ENSG00000196576 & PLXNB2 & chr22 & 50274979 & 50307646 &
+amp\tabularnewline
+60103 & ENSG00000156304 & SCAF4 & chr21 & 31671033 & 31732075 &
+amp\tabularnewline
+60187 & ENSG00000159216 & RUNX1 & chr21 & 34787801 & 36004667 &
+amp\tabularnewline
+60367 & ENSG00000160201 & U2AF1 & chr21 & 43092956 & 43107587 &
+del\tabularnewline
+\bottomrule
+\end{longtable}
+
+\hypertarget{all-genome}{%
+\subsection{All genome:}\label{all-genome}}
+
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-8-1.pdf}
+
+\hypertarget{all-chromosomes}{%
+\subsection{All chromosomes:}\label{all-chromosomes}}
+
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-1.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-2.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-3.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-4.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-5.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-6.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-7.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-8.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-9.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-10.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-11.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-12.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-13.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-14.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-15.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-16.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-17.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-18.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-19.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-20.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-21.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-22.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-23.pdf}
+\includegraphics{Report_coriander_files/figure-latex/unnamed-chunk-9-24.pdf}
+
+
+\end{document}

@@ -5,19 +5,24 @@
 
 path.to.programm = "/media/vera/big_data/coriandR"
 path.output = "/media/vera/big_data/coriandR/tables"
-pon.table.name = "pon.muenchen.tsv"
+pon.table.name = "pon.marburg.19p.median.tsv"
 
 
 setwd(path.to.programm)
-pon = read.table("./tables/pon.muenchen.fc.tsv", header = TRUE, row.names = 1)
+pon = read.table("./tables/pon.marburg.19p.fc.tsv", header = TRUE, row.names = 1)
 # grep('.bam', colnames(pon))
-gender_pon = read.table("./tables/gender.muenchen.pon.tsv.csv",
+gender_pon = read.table("./tables/geschlechter.pon.marburg.19p.csv",
                         header = TRUE, sep = ",", row.names = 1)
 
 
 panel_of_normals_normalization <- function(pon) {
-  pon_norm <- t(t(pon[ , 6:ncol(pon)]) / colSums(pon[ , 6:ncol(pon)])) * (pon[1, 3] - pon[1, 2] + 1)
-  pon_norm <- cbind(pon[ , 1:5], pon_norm)
+  #pon_norm <- t(t(pon[ , 6:ncol(pon)]) / colSums(pon[ , 6:ncol(pon)])) * (pon[1, 3] - pon[1, 2] + 1)
+  # alter ansatz, jetzt normalisieren wir über median
+  pon_norm <- pon[ , 1:5]
+  for (c in 6:ncol(pon)) {
+    pon_norm[ , c] <- pon[ , c] / median(pon[ , c]) *2
+  }
+  #pon_norm <- cbind(pon[ , 1:5], pon_norm)
   # Die laenge der bins wird aus der Differenz automatisch ermittelt
   return(pon_norm)
 }

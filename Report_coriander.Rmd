@@ -98,12 +98,12 @@ pon.gender.adjust = function(pon, gender) {
 # SCHRITT 3
 # Die Patientendaten normalisieren
 patient_normalization = function(patient, column_number) {
-  # TODO: auf Median normalisieren
   # patient = tabelle der patienten
   # column_number = nummer der spalte mit deb patienten-bins
   # (bei einem patienten -> 6) 
   patient_norm <- patient[ , 1:5]
-  patient_norm$pat_bins <- patient[ , column_number] / sum(patient[ , column_number]) * (patient[1, 3] - patient[1, 2] + 1)
+  #patient_norm$pat_bins <- patient[ , column_number] / sum(patient[ , column_number]) * (patient[1, 3] - patient[1, 2] + 1)
+  patient_norm$pat_bins <- patient[ , column_number] / median(patient[ , column_number]) *2
   # eine neue tabelle mit den allgemeinen daten und den normalisierten patienten-bins
   # normalisierung basiert auf der automatischen erkennung der bin-laenge (differenz end und start der 1. bin)
   # ist also dynamisch
@@ -316,7 +316,8 @@ bins2bands = function(bin_data, cytobands, sd_factor) {
     # dann greift die bedingung 2 oder 3, je nach werten
     
     band.pat = bin_data[sel, "patient"]
-    band.pon = colSums((bin_data[sel, grep(".bam", colnames(bin_data))]), na.rm = TRUE)
+    #band.pon = colSums((bin_data[sel, grep(".bam", colnames(bin_data))]), na.rm = TRUE)
+    band.pon = colSums((bin_data[sel, grep("V", colnames(bin_data))]), na.rm = TRUE)
     sum_pat = sum(band.pat, na.rm = TRUE)
     # summe der werte der bins in dieser band fuer den patienten
     sum_pon = mean(band.pon, na.rm = TRUE)
@@ -449,7 +450,7 @@ plot_bins_regions_ideogram <- function(bin_data, cytobands, region_merged,
 
   x <- bin_data[bin_data$Chr == chrn, "Start"]
   y <- bin_data[bin_data$Chr == chrn, "patient"]
-  plot_patient <- qplot(x, y, ylim=c(-50, 750)) +
+  plot_patient <- qplot(x, y, ylim=c(-1, 6)) +
                   geom_line(aes(x = bin_data[bin_data$Chr == chrn, "Start"],
                                 y = bin_data[bin_data$Chr == chrn, "mean"]),
                                 color = "gray", linetype = "solid") +
@@ -465,20 +466,20 @@ plot_bins_regions_ideogram <- function(bin_data, cytobands, region_merged,
                                  shape = 19, color = "red", size = 1) +
     #das eigentliche ideogram
                   geom_rect(data = cytobands[cytobands$Chr == chrn, ],
+                            stat = "identity", position = "identity",
                     aes(NULL, NULL, xmin = Start, xmax = End, fill = Band.type),
-                        ymin = -50, ymax = -10, color = "gray", size = 0.5, alpha = 0.4) +
-                  scale_fill_manual(values=c("acen" = "#2b8cbe", "gneg" = "#f7f7f7", "gpos100" = "#252525",
-                                             "gpos25" = "#cccccc", "gpos50" = "#969696",
-                                             "gpos75" = "#636363", "gvar" = "#045a8d", "stalk" = "#be8c2b",
-                                              "add" = "blue", "del" = "red")) +
+                        ymin = -0.6, ymax = -0.2, color = "gray", size = 0.5, alpha = 0.4) +
+                  scale_fill_manual(values=c("acen" = "#2b8cbe", "gneg" = "#f7f7f7",
+                                             "gpos100" = "#252525", "gpos25" = "#cccccc",
+                                             "gpos50" = "#969696", "gpos75" = "#636363",
+                                             "gvar" = "#045a8d", "stalk" = "#be8c2b",
+                                             "add" = "blue", "del" = "red")) +
     
     # die regione einzeichnen
                   geom_rect(data = region_merged[region_merged$Chr == chrn,],
                             aes(NULL, NULL, xmin = Start, xmax = End, fill = Direction),
-                                #ymin = median(patient[patient$Chr == chrn, 6]),
-                                #ymax = median(pon[pon$Chr == chrn, "mean"]),
-                                ymin = 250,
-                                ymax = 500,
+                                ymin = 1,
+                                ymax = 3,
                                 color = "gray", size = 0.5, alpha = 0.4) +
     
                   theme_bw() +
@@ -546,15 +547,17 @@ plot_genome_wide_cnv = function(bin_data) {
   # die koordinaten fuer die bins sind damit festgelegt, die vorbereitung ist abgeschlossen
 
   # plotten!
-  bin_data$pat_norm <- (bin_data[ , "patient"]/ median(bin_data[ , "patient"]))*2
-  plot_all_chromosomes <- qplot(global_Start, pat_norm, 
+  
+  #bin_data$pat_norm <- (bin_data[ , "patient"]/ median(bin_data[ , "patient"]))*2
+  # muessen wir hier nochmals normalisieren? ich glaube, nicht.
+  plot_all_chromosomes <- qplot(global_Start, patient, 
                                 data = bin_data[bin_data$aberration == "normal", ], ylim=c(0, 5)) +
     geom_point(data = bin_data[bin_data$aberration == "add", ], 
                aes(x = bin_data[bin_data$aberration == "add", "global_Start"], 
-                   y = bin_data[bin_data$aberration == "add", "pat_norm"], color = "blue")) +
+                   y = bin_data[bin_data$aberration == "add", "patient"], color = "blue")) +
     geom_point(data = bin_data[bin_data$aberration == "del", ], 
                aes(x = bin_data[bin_data$aberration == "del", "global_Start"], 
-                   y = bin_data[bin_data$aberration == "del", "pat_norm"], color = "orange")) +
+                   y = bin_data[bin_data$aberration == "del", "patient"], color = "orange")) +
     geom_rect(data = coordinates_genome_wide,
               aes(NULL, NULL, xmin = Offset, xmax = global_End,
                   ymin = 0,

@@ -6,7 +6,7 @@ output: pdf_document
 ---
 
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "/media/vera/big_data/coriandR/output/120517.median/")
+knitr::opts_knit$set(root.dir = "/media/vera/big_data/coriandR/output/119706.median")
 knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
 ```
 
@@ -374,11 +374,6 @@ karyotype = function(bands) {
     }
   }
   
-  #karyotype_to_report$Chr = sub(c(unique(sort(karyotype_to_report$Chr, method = "shell"))),
-              # c(1, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 2, 20, 21, 22, 3, 4, 5, 6, 7, 8, 9, X, Y))
-  
-    
-  
   for (a in 1:nrow(karyotype_to_report)) {
     karyotype_to_report[a, "Aberration"] = as.character(paste0(karyotype_to_report$Direction[a], "(",
                                                                suspected_bands$Chr[a], ")(",
@@ -387,7 +382,7 @@ karyotype = function(bands) {
   }
   
   karyotype_to_report$Aberration = as.character(paste0(ifelse(karyotype_to_report$Direction == 1, "add", "del"), "(",
-                                                       karyotype_to_report$Chr, ")(",
+                                                       sub("chr", "", karyotype_to_report$Chr),")(",
                                                        karyotype_to_report$Name,
                                                        karyotype_to_report$last_Name, ")"))
   return(karyotype_to_report)
@@ -455,8 +450,7 @@ plot_bins_regions_ideogram <- function(bin_data, cytobands, region_merged,
 
   x <- bin_data[bin_data$Chr == chrn, "Start"]
   y <- bin_data[bin_data$Chr == chrn, "patient"]
-  plot_patient <- qplot(x, y) +
-    # , ylim=c(-1, 6)
+  plot_patient <- qplot(x, y, ylim=c(-1, 6)) +
                   geom_line(aes(x = bin_data[bin_data$Chr == chrn, "Start"],
                                 y = bin_data[bin_data$Chr == chrn, "mean"]),
                                 color = "gray", linetype = "solid") +
@@ -474,7 +468,7 @@ plot_bins_regions_ideogram <- function(bin_data, cytobands, region_merged,
                   geom_rect(data = cytobands[cytobands$Chr == chrn, ],
                             stat = "identity", position = "identity",
                     aes(NULL, NULL, xmin = Start, xmax = End, fill = Band.type),
-                        ymin = 0, ymax = 0.08, color = "gray", size = 0.5, alpha = 0.4) +
+                        ymin = -0.6, ymax = -0.2, color = "gray", size = 0.5, alpha = 0.4) +
                   scale_fill_manual(values=c("acen" = "#2b8cbe", "gneg" = "#f7f7f7",
                                              "gpos100" = "#252525", "gpos25" = "#cccccc",
                                              "gpos50" = "#969696", "gpos75" = "#636363",
@@ -484,14 +478,13 @@ plot_bins_regions_ideogram <- function(bin_data, cytobands, region_merged,
     # die regione einzeichnen
                   geom_rect(data = region_merged[region_merged$Chr == chrn,],
                             aes(NULL, NULL, xmin = Start, xmax = End, fill = Direction),
-                                ymin = 0.1,
-                                ymax = 0.7,
+                                ymin = 1,
+                                ymax = 3,
                                 color = "gray", size = 0.5, alpha = 0.4) +
     
-                  scale_y_log10() +
                   theme_bw() +
                   labs(title = "Plot patient vs PON with 3*SD", subtitle = chrn,
-                  x = "Regions", y = "log10 Mappable Reads")
+                  x = "Regions", y = "Mappable Reads")
   print(plot_patient)
   return(plot_patient)
 }
@@ -610,7 +603,7 @@ kable(karyotype_to_report$Aberration, col.names = NULL, align = "l", "html")
 
 ## Genes from AMl Guidline 2016 or cancer driver genes paper:
 ```{r echo = FALSE}
-  kable(reported_genes[ , 1:6], align = "l")
+kable(reported_genes[ , 1:6], align = "l")
 ```
 
 

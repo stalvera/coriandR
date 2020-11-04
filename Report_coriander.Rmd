@@ -382,7 +382,7 @@ karyotype = function(bands) {
   }
   
   karyotype_to_report$Aberration = as.character(paste0(ifelse(karyotype_to_report$Direction == 1, "add", "del"), "(",
-                                                       karyotype_to_report$Chr, ")(",
+                                                       sub("chr", "", karyotype_to_report$Chr), ")(",
                                                        karyotype_to_report$Name,
                                                        karyotype_to_report$last_Name, ")"))
   return(karyotype_to_report)

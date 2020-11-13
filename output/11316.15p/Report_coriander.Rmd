@@ -216,7 +216,7 @@ region_merge = function(bin_data, regions, sd_factor) {
                                End.i=integer(), Direction=factor(levels=c('add', 'del')),
                                stringsAsFactors = F)
   
-  if(nrow(regions) < 2) return(regions_merged)
+  if(nrow(regions) < 1) return(regions_merged)
   
   regions_merged[1,] = list(as.character(regions$Chr[1]), 
                             regions$Start[1], 
@@ -546,57 +546,31 @@ plot_genome_wide_cnv = function(bin_data) {
   bin_data$global_Start = bin_data$Start+bin_data$Offset
   # die koordinaten fuer die bins sind damit festgelegt, die vorbereitung ist abgeschlossen
 
-  # ein Plot ohne farbige Punkte
+  # plotten!
+  
+  #bin_data$pat_norm <- (bin_data[ , "patient"]/ median(bin_data[ , "patient"]))*2
+  # muessen wir hier nochmals normalisieren? ich glaube, nicht.
   plot_all_chromosomes <- qplot(global_Start, patient, 
                                 data = bin_data[bin_data$aberration == "normal", ], ylim=c(0, 5)) +
-                          geom_rect(data = coordinates_genome_wide,
-                                aes(NULL, NULL, xmin = Offset, xmax = global_End,
-                                    ymin = 0,
-                                    ymax = 5),
-                                color = "white", size = 0.5, alpha = 0.1) +
-                          geom_text(data = coordinates_genome_wide,
-                                    aes(x = median, y = c(4.8, 4.5, 4.2, 4.8, 4.5, 4.2, 4.8, 4.5, 4.2, 4.8, 4.5, 4.2, 4.8, 4.5, 4.2, 4.8, 4.5, 4.2, 4.8, 4.5, 4.2, 4.8, 4.5, 4.2) , label = Chr), size = 3) +
-                          theme_bw() +
-                          theme(panel.grid.minor=element_blank(), axis.text.x = element_blank(), legend.position="none") +
-                          scale_x_discrete(breaks = coordinates_genome_wide[ , "Offset"],
-                                           labels = coordinates_genome_wide[ , "Chr"]) +
-                          labs(title = "Plot all chromosomes", x = "Chromosomes", y = "Reads")
-  
-  # hier brauchen wir eine Bedingung fuer die Gesunden, die keine Aberrationen aufweisen
-
-  if (nrow(bin_data[bin_data$aberration == "add", ]) < 1) {
-    # wenn gar keine Auffaelligkeiten, dann ein Plot ohne farbige Punkte
-    if (nrow(bin_data[bin_data$aberration == "del", ]) < 1) {
-      return(plot_all_chromosomes)
-    }
-    # wenn Deletionen ohne Amplifikationen vorhanden sind, dann del Punkte zeichnen
-    plot_all_chromosomes <- plot_all_chromosomes +
-                              geom_point(data = bin_data[bin_data$aberration == "del", ], 
-                                aes(x = bin_data[bin_data$aberration == "del", "global_Start"], 
-                                y = bin_data[bin_data$aberration == "del", "patient"], color = "orange"))
-    return(plot_all_chromosomes)
-  }
-  
-  if (nrow(bin_data[bin_data$aberration == "del", ]) < 1) {
-    # wenn Amplifikationen ohne Deletionen, dann add Punkte plotten
-    plot_all_chromosomes <- plot_all_chromosomes +
-                            geom_point(data = bin_data[bin_data$aberration == "add", ], 
-                             aes(x = bin_data[bin_data$aberration == "add", "global_Start"], 
-                             y = bin_data[bin_data$aberration == "add", "patient"], color = "blue"))
-    return(plot_all_chromosomes)
-  }
-  
-  if ((nrow(bin_data[bin_data$aberration == "del", ]) > 0) & 
-      (nrow(bin_data[bin_data$aberration == "add", ]) > 0)) {
-    plot_all_chromosomes <- plot_all_chromosomes +
-                            geom_point(data = bin_data[bin_data$aberration == "add", ], 
-                             aes(x = bin_data[bin_data$aberration == "add", "global_Start"], 
-                             y = bin_data[bin_data$aberration == "add", "patient"], color = "blue")) +
-                            geom_point(data = bin_data[bin_data$aberration == "del", ], 
-                                aes(x = bin_data[bin_data$aberration == "del", "global_Start"], 
-                                y = bin_data[bin_data$aberration == "del", "patient"], color = "orange"))
-    return(plot_all_chromosomes)
-      }
+    geom_point(data = bin_data[bin_data$aberration == "add", ], 
+               aes(x = bin_data[bin_data$aberration == "add", "global_Start"], 
+                   y = bin_data[bin_data$aberration == "add", "patient"], color = "blue")) +
+    geom_point(data = bin_data[bin_data$aberration == "del", ], 
+               aes(x = bin_data[bin_data$aberration == "del", "global_Start"], 
+                   y = bin_data[bin_data$aberration == "del", "patient"], color = "orange")) +
+    geom_rect(data = coordinates_genome_wide,
+              aes(NULL, NULL, xmin = Offset, xmax = global_End,
+                  ymin = 0,
+                  ymax = 5),
+              color = "white", size = 0.5, alpha = 0.1) +
+    geom_text(data = coordinates_genome_wide,
+              aes(x = median, y = c(4.8, 4.5, 4.2, 4.8, 4.5, 4.2, 4.8, 4.5, 4.2, 4.8, 4.5, 4.2, 4.8, 4.5, 4.2, 4.8, 4.5, 4.2, 4.8, 4.5, 4.2, 4.8, 4.5, 4.2) , label = Chr), size = 3) +
+    theme_bw() +
+    theme(panel.grid.minor=element_blank(), axis.text.x = element_blank(), legend.position="none") +
+    scale_x_discrete(breaks = coordinates_genome_wide[ , "Offset"],
+                     labels = coordinates_genome_wide[ , "Chr"]) +
+    labs(title = "Plot all chromosomes", x = "Chromosomes", y = "Reads")
+  return(plot_all_chromosomes)
 }
 ```
 

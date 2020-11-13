@@ -4,14 +4,14 @@
 ###################################################################################################
 
 path.to.programm = "/media/vera/big_data/coriandR"
-path.output = "/media/vera/big_data/coriandR/tables"
-pon.table.name = "pon.marburg.19p.median.tsv"
+path.output = "/media/vera/big_data/coriandR/tables/pon.size.detection/"
+pon.table.name = "pon.marburg.15p.median.tsv"
 
 
 setwd(path.to.programm)
-pon = read.table("./tables/pon.marburg.19p.fc.tsv", header = TRUE, row.names = 1)
+pon = read.table("./tables/pon.size.detection/pon.marburg.15p.fc.tsv", header = TRUE, row.names = 1)
 # grep('.bam', colnames(pon))
-gender_pon = read.table("./tables/geschlechter.pon.marburg.19p.csv",
+gender_pon = read.table("./tables/pon.size.detection/geschlechter.pon.marburg.15p.csv",
                         header = TRUE, sep = ",", row.names = 1)
 
 

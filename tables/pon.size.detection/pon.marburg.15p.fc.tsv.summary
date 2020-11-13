@@ -1,0 +1,15 @@
+Status	/media/vera/big_data/mr_genoms/marburg.gesund.september/62720_S6_L001.bam	/media/vera/big_data/mr_genoms/marburg.gesund.september/63120_S8_L001.bam	/media/vera/big_data/mr_genoms/marburg.gesund.september/63220_S9_L001.bam	/media/vera/big_data/mr_genoms/marburg.gesund.september/63320_S1_L001.bam	/media/vera/big_data/mr_genoms/marburg.gesund.september/63420_S1_L001.bam	/media/vera/big_data/mr_genoms/marburg.gesund.september/63520_S2_L001.bam	/media/vera/big_data/mr_genoms/marburg.gesund.september/63620_S3_L001.bam	/media/vera/big_data/mr_genoms/marburg.gesund.september/63720_S4_L001.bam	/media/vera/big_data/mr_genoms/marburg.gesund.september/63820_S5_L001.bam	/media/vera/big_data/mr_genoms/marburg.gesund.september/64820_S7_L001.bam	/media/vera/big_data/mr_genoms/new.pon.marburg/AML11_S6_L001.bam	/media/vera/big_data/mr_genoms/new.pon.marburg/AML12_S6_L001.bam	/media/vera/big_data/mr_genoms/new.pon.marburg/AML13_S7_L001.bam	/media/vera/big_data/mr_genoms/new.pon.marburg/AML14_S8_L001.bam	/media/vera/big_data/mr_genoms/new.pon.marburg/healthy1_S4_L001.bam
+Assigned	3977974	3739387	2784729	2183613	3181380	3098834	3922531	3236809	3715819	2290879	6094589	1737869	2074732	600359	9690922
+Unassigned_Unmapped	55919	53205	44088	45421	47573	51972	65126	41908	64951	40301	135002	22473	33557	8822	1288869
+Unassigned_Read_Type	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+Unassigned_Singleton	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+Unassigned_MappingQuality	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+Unassigned_Chimera	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+Unassigned_FragmentLength	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+Unassigned_Duplicate	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+Unassigned_MultiMapping	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+Unassigned_Secondary	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+Unassigned_NonSplit	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+Unassigned_NoFeatures	43634	43810	31259	24513	35347	33055	44477	39500	41511	29096	69693	20913	25286	7079	111037
+Unassigned_Overlapping_Length	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0
+Unassigned_Ambiguity	557	540	404	317	452	471	580	433	533	336	840	209	291	92	1708

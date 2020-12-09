@@ -1,0 +1,652 @@
+---
+title: "Report CORIANDR: ChrOmosomal abeRration Identifier AND Reporter in R"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: pdf_document
+---
+
+```{r, setup, include=FALSE}
+#knitr::opts_knit$set(root.dir = "~/diss/CORIANDER/r.script.coriander/output/120517/")
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+
+
+```{r echo = FALSE}
+patient.data = read.table("patient.data.tsv", stringsAsFactors = F)
+patient_name = patient.data[1, 2]
+gender = as.character(patient.data[2, 2])
+```
+
+
+```{r echo = FALSE}
+
+# librarys
+library(ggplot2)
+library(knitr)
+
+
+###################################################################################################
+# VORBEREITEN
+###################################################################################################
+
+# SCHRITT 1
+# Daten einlesen: Patient, PON, Giemsa-Bands, alle Gene und eine Auswahl der relevanten.
+
+patient = read.table("patient.fc.tsv", header=TRUE, row.names = 1, stringsAsFactors = F) 
+bin_data = read.table("pon.tsv", header=TRUE, row.names = 1, stringsAsFactors = F)
+bin_data$Start = as.integer(bin_data$Start)
+bin_data$End = as.integer(bin_data$End)
+# pon wurde bereits erzuegt, normalisiert und mit den statistischenwerten versehen!
+
+cytobands = read.table("../../tables/cytobands.tsv", header=TRUE, row.names = 1, stringsAsFactors = F)
+# die farben sind bereits enthalten!
+cancer_genes = read.table("../../tables/cancer.driver.genes_unique.and.goi.aml.csv", header=TRUE, sep = "\t",
+                          stringsAsFactors = F)
+all_genes = read.table("../../tables/all_genes.tsv", header=TRUE, row.names = 1, stringsAsFactors = F)
+all_genes$start = as.integer(all_genes$start)
+all_genes$end = as.integer(all_genes$end)
+
+```
+
+```{r echo = FALSE}
+stats = read.table("mapping.stats.tsv", stringsAsFactors = F)
+stats[nrow(stats) +1, ] = list(as.character("unique_mapped_reads"), sum(patient[ , 6]))
+stats[nrow(stats) +1, ] = list(as.character("PATIENT ID"), patient_name)
+stats[nrow(stats) +1, ] = list(as.character("gender"), gender)
+
+library(knitr)
+kable(stats, digits = 0, col.names = NULL, align = "l")
+```
+
+
+```{r echo = FALSE}
+
+# SCHRITT 2
+# PON an das Geschlecht des Patienten anpassen
+pon.gender.adjust = function(pon, gender) {
+  if (gender == "M") {
+    chrn = "chrX"
+    pon.copy = pon[pon$Chr == "chrX_M", ]
+    pon.copy$Chr = chrn
+    pon = rbind(pon, pon.copy)
+    
+    chrn = "chrY"
+    pon.copy = pon[pon$Chr == "chrY_M", ]
+    pon.copy$Chr = chrn
+    pon = rbind(pon, pon.copy)
+    
+    pon = pon[!(pon$Chr == "chrX_F" | pon$Chr == "chrY_F" | pon$Chr == "chrX_M" | pon$Chr == "chrY_M"), ]
+  }
+  
+  else {
+    chrn = "chrX"
+    pon.copy = pon[pon$Chr == "chrX_F", ]
+    pon.copy$Chr = chrn
+    pon = rbind(pon, pon.copy)
+    
+    chrn = "chrY"
+    pon.copy = pon[pon$Chr == "chrY_F", ]
+    pon.copy$Chr = chrn
+    pon = rbind(pon, pon.copy)
+    
+    pon = pon[!(pon$Chr == "chrX_F" | pon$Chr == "chrY_F" | pon$Chr == "chrX_M" | pon$Chr == "chrY_M"), ]
+  }
+}
+
+
+# SCHRITT 3
+# Die Patientendaten normalisieren
+patient_normalization = function(patient, column_number) {
+  # patient = tabelle der patienten
+  # column_number = nummer der spalte mit deb patienten-bins
+  # (bei einem patienten -> 6) 
+  patient_norm <- patient[ , 1:5]
+  #patient_norm$pat_bins <- patient[ , column_number] / sum(patient[ , column_number]) * (patient[1, 3] - patient[1, 2] + 1)
+  patient_norm$pat_bins <- patient[ , column_number] / median(patient[ , column_number]) *2
+  # eine neue tabelle mit den allgemeinen daten und den normalisierten patienten-bins
+  # normalisierung basiert auf der automatischen erkennung der bin-laenge (differenz end und start der 1. bin)
+  # ist also dynamisch
+  return(patient_norm)
+}
+
+# SCHRITT 4
+# Den Patienten als eine neue Spalte zu der PON-Tabelle hinzufügen
+unite.data = function(pon, patient) {
+  pon$patient = patient$pat_bins
+  return(pon)
+}
+
+###################################################################################################
+# RECHNEN
+###################################################################################################
+
+# SCHRITT 5
+#Del/amp Bins detektieren
+aberration.bins.identifier = function(bin_data, sd_factor) {
+  bin_data$aberration = with(bin_data, factor(ifelse(patient < mean - sd_factor * sd, 'del', ifelse(patient > mean + sd_factor * sd, 'add', 'normal')), levels = c('normal', 'add', 'del')))
+  return(bin_data)
+}
+
+
+# SCHRITT 6
+# Abweichende Bins werden zu ganzen Regionen mit einer gemeinsamen Richtung
+# (amplifiziert oder deletiert) zusammengefasst
+# und in eine Tabelle hereingeschrieben
+region_bring_together = function(bin_data, sd_factor) {
+  # die funktion schaut alle chromosome (inkl. geschlechterchr) nach den over/under regionen durch
+  # und gibt diese mit den start-/endpunkten in einer tabelle wieder
+  regions = data.frame(Chr=character(), Start=integer(), End=integer(), Start.i=integer(), 
+                        End.i=integer(), Direction=integer(), stringsAsFactors = F)
+  last_chr = 'NULL'
+  last_direction = 0 # 0 for normal, -1 for del, +1 for amp
+  region_start = 0
+  for (i in 1:nrow(bin_data)) {
+    if(bin_data$Chr[i] != last_chr) {
+      if(last_chr != 'NULL' & last_direction != 0) {
+        regions[nrow(regions) + 1, ] = list(as.character(last_chr), bin_data$Start[region_start], 
+                                            bin_data$End[i-1], region_start, i, last_direction)
+        #eine region wird zugemacht, falls am ende eines chromosoms eine region noch offen war
+      }
+      last_direction = 0
+      region_start = 0
+      last_chr = bin_data$Chr[i]
+    }
+
+    direction = 0
+    if(!is.na(bin_data$patient[i]) & (bin_data$patient[i] < bin_data$mean[i] - sd_factor * bin_data$sd[i])) {
+      direction = -1
+    } else if(!is.na(bin_data$patient[i]) & (bin_data$patient[i] > 
+                                             bin_data$mean[i] + sd_factor * bin_data$sd[i])) {
+      direction = +1
+    }
+    if (direction == last_direction) {
+      next()
+    }
+    if (direction > last_direction) {
+      if (last_direction == 0) {
+        region_start = i
+        # neue del oder amp region wird aufgemacht
+      }
+      else if (last_direction == -1) {
+        regions[nrow(regions) + 1, ] = list(as.character(bin_data$Chr[i]), bin_data$Start[region_start], 
+                                            bin_data$End[i-1], region_start, i-1, last_direction)
+        # alte del region wird zugemacht
+        if (direction == 1) {
+          region_start = i
+          # neue amp region wird aufgemacht
+        }
+      }
+    } 
+    else if (direction < last_direction) {
+      if (last_direction == 0) {
+        region_start = i
+        # neue del region wird aufgemacht
+      }
+      else if (last_direction == 1) {
+        regions[nrow(regions) + 1, ] = list(as.character(bin_data$Chr[i]), bin_data$Start[region_start], 
+                                            bin_data$End[i-1], region_start, i-1, last_direction)
+        # alte amp region wird zugemacht
+        if (direction == -1) {
+          region_start = i
+          # neue del region wird aufgemacht
+        }
+      }
+    }
+    last_direction = direction
+  }
+  if(last_direction != 0) {
+    regions[nrow(regions) + 1, ] = list(as.character(bin_data$Chr[i]), bin_data$Start[region_start], 
+                                        bin_data$End[i-1], region_start, i, last_direction)
+    #eine region wird zugemacht, falls bei dem allerletzten chromosom eine region noch offen war
+  }
+  return(regions)
+}
+
+###################################################################################################
+# REPORTEN
+###################################################################################################
+
+# SCHRITT 7
+# Die Regionen werden zu größeren Regionen zusammengefasst, deren Werte gegen die
+# Werte des PONs an der gleichen Stelle geprüft werden
+# Momentan noch 3*SD-Statistik.
+region_merge = function(bin_data, regions, sd_factor) {
+  regions_merged = data.frame(Chr=character(), Start=integer(), End=integer(), Start.i=integer(), 
+                               End.i=integer(), Direction=factor(levels=c('add', 'del')),
+                               stringsAsFactors = F)
+  
+  if(nrow(regions) < 2) return(regions_merged)
+  
+  regions_merged[1,] = list(as.character(regions$Chr[1]), 
+                            regions$Start[1], 
+                            regions$End[1],
+                            regions$Start.i[1],
+                            regions$End.i[1],
+                            ifelse(regions$Direction[1]==1, 'add', 'del'))
+  m = 1 #der zaehler in der tabelle "regions_merged"
+  mean_region = 0
+  mean_pon = 0
+  sd_pon = 0
+  
+  for (r in 2:nrow(regions)) {
+    if (regions_merged$Chr[m] != regions$Chr[r] | regions_merged$Direction[m] != regions$Direction[r]) {
+      # mergen nur, wenn auf dem selben chr.
+      regions_merged[nrow(regions_merged) + 1, ] = list(Chr=as.character(regions$Chr[r]), 
+                                                        Start=regions$Start[r], 
+                                                        End=regions$End[r],
+                                                        Start.i=regions$Start.i[r],
+                                                        End.i=regions$End.i[r],
+                                                        Direction=ifelse(regions$Direction[r]==1, 'add', 'del'))
+      # die region auf einem neuen chr oder mit einer anderen richtung zu der neuen tabelle hinzufuegen
+      m = nrow(regions_merged)
+      # das ist die region, von der aus betrachtet wird
+      next
+    }
+    bin_start = regions_merged$Start.i[m]
+    bin_end = regions$End.i[r]
+    
+    mean_region = mean(c(bin_data$patient[bin_start]:bin_data$patient[bin_end]), na.rm = TRUE)
+    mean_pon = mean(c(bin_data$mean[bin_start:bin_end]), na.rm = TRUE)
+    #die mittelwerte der betroffenen bins inkl. "normale" chr.abschnitte bei dem patienten und pon
+    sd_pon <- mean(bin_data$sd[bin_start:bin_end])
+    
+    if (mean_region > mean_pon + sd_factor*sd_pon | mean_region < mean_pon - sd_factor*sd_pon) {
+      # wenn die mittelwerte der betroffenen bins immer noch signifikant hoch/runter sind -> mergen
+      regions_merged[m, ] = list(as.character(regions$Chr[r]), 
+                                 regions_merged$Start[m], 
+                                 regions$End[r],
+                                 bin_start,
+                                 bin_end,
+                                 ifelse(regions$Direction[r]==1, 'add', 'del'))
+    } 
+    else {
+      regions_merged[nrow(regions_merged) + 1, ] = list(Chr=as.character(regions$Chr[r]), 
+                                                        Start=regions$Start[r], 
+                                                        End=regions$End[r],
+                                                        Start.i=regions$Start.i[r],
+                                                        End.i=regions$End.i[r],
+                                                        Direction=ifelse(regions$Direction[r]==1, 'add', 'del'))
+    }
+    m <- nrow(regions_merged)
+  }
+  return(regions_merged)
+}
+
+
+# SCHRITT 8
+# Hier werden abweichende Banden aus den Bins detektiert
+# Herausforderungen dabei ist, dass die Bins und die Bands in verschiedenen Schritten laufen,
+# so kann eine Bande 100.000 Schritte haben
+bins2bands = function(bin_data, cytobands, sd_factor) {
+  last_chr = 'NULL'
+  direction = 0 # die richtung der abweichenden bande (over, under)
+  
+  bands = data.frame(Chr=character(), Name=character(), Start=integer(), End=integer(),
+                     Sum.pat=integer(),
+                     Sum.pon=integer(), Direction=integer(),
+                     stringsAsFactors = F)
+  
+  for (c in 1:nrow(cytobands)) {
+    # Selektieren der Zeilen mit benötigten Eigenschften
+    # hier gibt es mehrere faelle, da die schritte der bind und banden nicht gleich sind
+    # und mehrere bins in einer bande sein koennen
+    # bzw. auch  kleine bands in einer bin
+    
+    # die bedingung, dass die chromosome der banden und das patienten
+    # gleich sind, muss immer erfuellt sein
+    
+    sel = as.character(bin_data$Chr) == as.character(cytobands$Chr[c]) &
+      # fall 1: die bin ist kleiner als die band
+      ((bin_data$Start >= cytobands$Start[c] & bin_data$End <= cytobands$End[c]) |
+         # fall 2: die bin ist zwischen 2 bands, liegt aber eher in der betrachteten bin,
+         # weil das ende von der bin naeher zum ende der band liegt, als der
+         # anfang zum anfang der naechsten
+         # die 2. bedingung wurde eingebaut, um zu verhindern, dass die bins vor der aktuellen
+         # band mitselektiert werden
+         ((bin_data$Start < cytobands$End[c]) &
+            (bin_data$End > cytobands$Start[c]) &
+            ((cytobands$End[c] - bin_data$Start) >= (bin_data$End - cytobands$End[c]))) |
+         # fall 3: die bin ist zwischen 2 bands, liegt aber eher in der
+         # betrachteten bin
+         # weil der anfang von der bin naeher zum anfang der band liegt, als das ende
+         ((bin_data$Start < cytobands$Start[c]) &
+            ((bin_data$End - cytobands$Start[c]) > (cytobands$Start[c] - bin_data$Start))))
+    # fall 4: die band ist kleiner als die bin,
+    # dann greift die bedingung 2 oder 3, je nach werten
+    
+    band.pat = bin_data[sel, "patient"]
+    #band.pon = colSums((bin_data[sel, grep(".bam", colnames(bin_data))]), na.rm = TRUE)
+    band.pon = colSums((bin_data[sel, grep("V", colnames(bin_data))]), na.rm = TRUE)
+    sum_pat = sum(band.pat, na.rm = TRUE)
+    # summe der werte der bins in dieser band fuer den patienten
+    sum_pon = mean(band.pon, na.rm = TRUE)
+    # mittelwert der summe der bins in dem pon
+    sd_bands = sd(band.pon, na.rm = TRUE)
+    # standartabweichung fur die bins in der band
+    if (sum_pat > sum_pon + sd_factor*sd_bands) {
+      direction = +1 # die bande ist amp
+    }
+    else if (sum_pat < sum_pon - sd_factor*sd_bands) {
+      direction = -1 # die bande ist del
+    }
+    
+    bands[nrow(bands) + 1, ] = list(as.character(cytobands$Chr[c]),
+                                    as.character(cytobands$Name[c]),
+                                    cytobands$Start[c],
+                                    cytobands$End[c],
+                                    sum_pat,
+                                    sum_pon,
+                                    direction)
+    direction = 0
+  }
+  return(bands)
+}
+
+
+# SCHRITT 9
+# Hier werden Banden zusammengefasst und fuer den Report vorbereitet
+karyotype = function(bands) {
+  suspected_bands = bands[bands$Direction != 0, ]
+  
+  # bands mergen, wie bei den regions, nur ohne statistische validierung
+  suspected_bands$last_Name = suspected_bands$Name
+  karyotype_to_report = suspected_bands[1, ]
+  
+  karyotype_to_report$Aberration = NA
+  if(nrow(suspected_bands) < 1) return(karyotype_to_report)
+  
+  k = 1
+  # der zaehler in der tabelle karyotype_to_report
+  for (s in 2:nrow(suspected_bands)) {
+    if (karyotype_to_report$Chr[k] == suspected_bands$Chr[s] &
+        karyotype_to_report$Direction[k] == suspected_bands$Direction[s] &
+        karyotype_to_report$End[k] == suspected_bands$Start[s]) {
+      karyotype_to_report$last_Name[k] = suspected_bands$Name[s]
+      karyotype_to_report$End[k] = suspected_bands$End[s]
+      next
+    }
+    else {
+      karyotype_to_report[nrow(karyotype_to_report) +1, ] = suspected_bands[s, ]
+      # die bande auf einem neuen chr oder mit einer anderen richtung hinzufuegen
+      k = nrow(karyotype_to_report)
+      # das ist jetzt die bande, von der aus betrachtet wird
+    }
+  }
+  
+  for (a in 1:nrow(karyotype_to_report)) {
+    karyotype_to_report[a, "Aberration"] = as.character(paste0(karyotype_to_report$Direction[a], "(",
+                                                               suspected_bands$Chr[a], ")(",
+                                                               suspected_bands$Name[a],
+                                                               suspected_bands$last_Name[a], ")"))
+  }
+  
+  karyotype_to_report$Aberration = as.character(paste0(ifelse(karyotype_to_report$Direction == 1, "add", "del"), "(",
+                                                       sub("chr", "", karyotype_to_report$Chr), ")(",
+                                                       karyotype_to_report$Name,
+                                                       karyotype_to_report$last_Name, ")"))
+  return(karyotype_to_report)
+}
+
+
+# SCHRITT 10
+# Die Gene, die in den abweichenden Banden liegen, werden detektiert
+# und an eine Tabelle übergeben
+genes_finder = function(bin_data, all_genes, cancer_genes, sd_factor) {
+  suspected_bins <- data.frame(Chr=character(), Start=integer(), End=integer(), Bin=integer(),
+                               Aberration=character(), stringsAsFactors = F)
+  # Hier werden alle Bins gespeichert, die von pon_mean +/- 3*SD abweichen
+  g=0
+  for (g in 1:nrow(bin_data)) {
+    if (!is.na(bin_data$patient[g]) &
+        (bin_data$patient[g] < (bin_data$mean[g] - sd_factor * bin_data$sd[g]))) {
+      suspected_bins[nrow(suspected_bins) + 1, ] = list(as.character(bin_data$Chr[g]), 
+                                                        bin_data$Start[g], 
+                                                        bin_data$End[g],
+                                                        bin_data$patient[g],
+                                                        as.character("del"))
+    }
+    
+    else if (!is.na(bin_data$patient[g]) &
+             (bin_data$patient[g] > (bin_data$mean[g] + sd_factor * bin_data$sd[g]))) {
+      suspected_bins[nrow(suspected_bins) + 1, ] = list(as.character(bin_data$Chr[g]), 
+                                                        bin_data$Start[g], 
+                                                        bin_data$End[g],
+                                                        bin_data$patient[g],
+                                                        as.character("amp"))
+    }
+  }
+
+  special_genes = all_genes[all_genes$symbol %in% cancer_genes$genes,]
+  special_genes$aberration = 'norm'
+  special_genes$found = 0
+  
+  for(i in 1:nrow(special_genes)) {
+    bins = suspected_bins[suspected_bins$Chr == special_genes$chr[i] & (suspected_bins$Start <= special_genes$start[i] & special_genes$start[i] <= suspected_bins$End |
+                                                                          suspected_bins$Start <= special_genes$end[i] & special_genes$end[i] <= suspected_bins$End),]
+    if(nrow(bins) == 0) {next}
+    special_genes$found[i] = 1
+    if(all(bins$Aberration == 'amp')) {special_genes$aberration[i] = 'amp'}
+    if(all(bins$Aberration == 'del')) {special_genes$aberration[i] = 'del'}
+  }
+
+  reported_genes = special_genes[special_genes$found == 1 & (special_genes$aberration == "amp" | special_genes$aberration == "del"), ]
+
+  return(reported_genes)
+}
+
+
+# SCHRITT 11
+# Diese Funktion soll die Plots generieren. Bestandteile des Plots zur Zeit sind:
+# 1) Punkte aus den gemappten Patientendaten
+# 2) Eine Linie fuer die PON-Daten
+# 3) Errorbar fuer 3*SD der PON-Daten an dieser Stelle
+# 4) Del/amp Regionen
+# 5) Ein Ideogram zur besseren raemlichen Orientierung fuer die Kliniker
+
+
+plot_bins_regions_ideogram <- function(bin_data, cytobands, region_merged,
+                                       chrn, sd_factor) {
+
+  x <- bin_data[bin_data$Chr == chrn, "Start"]
+  y <- bin_data[bin_data$Chr == chrn, "patient"]
+  plot_patient <- qplot(x, y, ylim=c(-1, 6)) +
+                  geom_line(aes(x = bin_data[bin_data$Chr == chrn, "Start"],
+                                y = bin_data[bin_data$Chr == chrn, "mean"]),
+                                color = "gray", linetype = "solid") +
+                  geom_errorbar(aes(x = bin_data[bin_data$Chr == chrn, "Start"],
+                                    ymin = bin_data[bin_data$Chr == chrn, "mean"] - 
+                                    sd_factor * bin_data[bin_data$Chr == chrn, "sd"], 
+                                    ymax = bin_data[bin_data$Chr == chrn, "mean"] + 
+                                    sd_factor * bin_data[bin_data$Chr == chrn, "sd"]),
+                                width=0.1, color = "gray", alpha = 0.9, na.rm = TRUE) +
+    # na.rm = TRUE bedeutet, dass die fehlenden Werte keine fehlermeldungen mehr verursachen
+    
+                  geom_point(aes(x = x, y = bin_data[bin_data$Chr == chrn, "patient"]),
+                                 shape = 19, color = "red", size = 1) +
+    #das eigentliche ideogram
+                  geom_rect(data = cytobands[cytobands$Chr == chrn, ],
+                            stat = "identity", position = "identity",
+                    aes(NULL, NULL, xmin = Start, xmax = End, fill = Band.type),
+                        ymin = -0.6, ymax = -0.2, color = "gray", size = 0.5, alpha = 0.4) +
+                  scale_fill_manual(values=c("acen" = "#2b8cbe", "gneg" = "#f7f7f7",
+                                             "gpos100" = "#252525", "gpos25" = "#cccccc",
+                                             "gpos50" = "#969696", "gpos75" = "#636363",
+                                             "gvar" = "#045a8d", "stalk" = "#be8c2b",
+                                             "add" = "blue", "del" = "red")) +
+    
+    # die regione einzeichnen
+                  geom_rect(data = region_merged[region_merged$Chr == chrn,],
+                            aes(NULL, NULL, xmin = Start, xmax = End, fill = Direction),
+                                ymin = 1,
+                                ymax = 3,
+                                color = "gray", size = 0.5, alpha = 0.4) +
+    
+                  theme_bw() +
+                  labs(title = "Plot patient vs PON with 3*SD", subtitle = chrn,
+                  x = "Regions", y = "Mappable Reads")
+  print(plot_patient)
+  return(plot_patient)
+}
+
+
+# SCHRITT 12
+# Eine Schleife, um die Plots für alle Chromosomen zu erstellen
+# und diese in einem neuen Ordner zu speichern
+create.plots <- function(path.output, patient_name, bin_data, cytobands, region_merged, sd_factor) {
+  
+  setwd(path.output)
+  dir.create(paste0("Patient.", patient_name))
+  setwd(paste0("Patient.", patient_name))
+  
+  chrn= "chr0"
+  for (chrn in unique(bin_data$Chr)) {
+    plot_patient = plot_bins_regions_ideogram(bin_data, cytobands, region_merged,
+                                              chrn, sd_factor)
+    ggsave(filename = paste0("Plot.", chrn, ".png"))
+  }
+}
+
+
+# SCHRITT 15
+# Plot Uebersicht ueber alle Chromosomen nebeneinander
+# Die Bins als Punkte, keine PON-Daten
+# Patienten-Daten normalisiert auf 0
+# Die Y-Achse geht von 1 bis -1
+# Die amp/del Bins weichen nach obenm oder unten ab, sind farblich markiert
+# Duenne graue Linien am Ende jedes Chromosoms
+# Die X-Achse als die Koordinaten im ganzen Genom
+# Unterhalb der X-Achse die Chromosomen-Nummern
+# Eine Amplifikation hat mehr Gen-Kopien als Gain, diese Aufteilung (siehe Fig. 1 im iCHORcna Paper)
+# sollte auch von uns beibehalten werden.
+plot_genome_wide_cnv = function(bin_data) {
+  # eine Tabelle mit den globalen Koordinaten fuer alle Chromosomen
+  coordinates_genome_wide <- data.frame(Chr=character(), Start=integer(), End=integer(), Offset=integer(),
+                                        stringsAsFactors = F)
+  for (w in unique(bin_data$Chr)) {
+    coordinates_genome_wide[nrow(coordinates_genome_wide) + 1, ] = list(as.character(w),
+                                                                        0,
+                                                                        0,
+                                                                        0)
+  }
+
+  # die Koordinaten fuer die Enden setzen
+  coordinates_genome_wide[ , "End"] = sapply(coordinates_genome_wide$Chr, function (c) max(bin_data[bin_data$Chr == c, "End"]))
+  # die versetzten Koordinaten setzen - so entstehen globale Koordinaten
+  # coordinates_genome_wide[ , 4] = cumsum(1:(nrow(coordinates_genome_wide)-1))
+  coordinates_genome_wide[ , "Offset"] = cumsum(as.numeric(coordinates_genome_wide[ , "End"]))
+  coordinates_genome_wide[ , "Offset"] = c(0, coordinates_genome_wide[(1:nrow(coordinates_genome_wide)-1), "Offset"])
+  coordinates_genome_wide[ , "global_End"] = cumsum(as.numeric(coordinates_genome_wide[ , "End"]))
+  
+  for (z in 1:nrow(coordinates_genome_wide)) {
+    coordinates_genome_wide[z, "median"] = (coordinates_genome_wide[z, "Offset"] + coordinates_genome_wide[z, "global_End"])/2
+  }
+  
+  bin_data$Offset = sapply(bin_data$Chr, function(c) coordinates_genome_wide$Offset[coordinates_genome_wide$Chr == c])
+  bin_data$global_Start = bin_data$Start+bin_data$Offset
+  # die koordinaten fuer die bins sind damit festgelegt, die vorbereitung ist abgeschlossen
+
+  # ein Plot ohne farbige Punkte
+  plot_all_chromosomes <- qplot(global_Start, patient, 
+                                data = bin_data[bin_data$aberration == "normal", ], ylim=c(0, 5)) +
+                          geom_rect(data = coordinates_genome_wide,
+                                aes(NULL, NULL, xmin = Offset, xmax = global_End,
+                                    ymin = 0,
+                                    ymax = 5),
+                                color = "white", size = 0.5, alpha = 0.1) +
+                          geom_text(data = coordinates_genome_wide,
+                                    aes(x = median, y = c(4.8, 4.5, 4.2, 4.8, 4.5, 4.2, 4.8, 4.5, 4.2, 4.8, 4.5, 4.2, 4.8, 4.5, 4.2, 4.8, 4.5, 4.2, 4.8, 4.5, 4.2, 4.8, 4.5, 4.2) , label = Chr), size = 3) +
+                          theme_bw() +
+                          theme(panel.grid.minor=element_blank(), axis.text.x = element_blank(), legend.position="none") +
+                          scale_x_discrete(breaks = coordinates_genome_wide[ , "Offset"],
+                                           labels = coordinates_genome_wide[ , "Chr"]) +
+                          labs(title = "Plot all chromosomes", x = "Chromosomes", y = "Reads")
+  
+  # hier brauchen wir eine Bedingung fuer die Gesunden, die keine Aberrationen aufweisen
+
+  if (nrow(bin_data[bin_data$aberration == "add", ]) < 1) {
+    # wenn gar keine Auffaelligkeiten, dann ein Plot ohne farbige Punkte
+    if (nrow(bin_data[bin_data$aberration == "del", ]) < 1) {
+      return(plot_all_chromosomes)
+    }
+    # wenn Deletionen ohne Amplifikationen vorhanden sind, dann del Punkte zeichnen
+    plot_all_chromosomes <- plot_all_chromosomes +
+                              geom_point(data = bin_data[bin_data$aberration == "del", ], 
+                                aes(x = bin_data[bin_data$aberration == "del", "global_Start"], 
+                                y = bin_data[bin_data$aberration == "del", "patient"], color = "orange"))
+    return(plot_all_chromosomes)
+  }
+  
+  if (nrow(bin_data[bin_data$aberration == "del", ]) < 1) {
+    # wenn Amplifikationen ohne Deletionen, dann add Punkte plotten
+    plot_all_chromosomes <- plot_all_chromosomes +
+                            geom_point(data = bin_data[bin_data$aberration == "add", ], 
+                             aes(x = bin_data[bin_data$aberration == "add", "global_Start"], 
+                             y = bin_data[bin_data$aberration == "add", "patient"], color = "blue"))
+    return(plot_all_chromosomes)
+  }
+  
+  if ((nrow(bin_data[bin_data$aberration == "del", ]) > 0) & 
+      (nrow(bin_data[bin_data$aberration == "add", ]) > 0)) {
+    plot_all_chromosomes <- plot_all_chromosomes +
+                            geom_point(data = bin_data[bin_data$aberration == "add", ], 
+                             aes(x = bin_data[bin_data$aberration == "add", "global_Start"], 
+                             y = bin_data[bin_data$aberration == "add", "patient"], color = "blue")) +
+                            geom_point(data = bin_data[bin_data$aberration == "del", ], 
+                                aes(x = bin_data[bin_data$aberration == "del", "global_Start"], 
+                                y = bin_data[bin_data$aberration == "del", "patient"], color = "orange"))
+    return(plot_all_chromosomes)
+      }
+}
+```
+
+```{r echo = FALSE}
+bin_data = pon.gender.adjust(bin_data, gender)
+patient = patient_normalization(patient, 6)
+bin_data = unite.data(bin_data, patient)
+sd_factor = 3
+bin_data = aberration.bins.identifier(bin_data, sd_factor)
+
+regions = region_bring_together(bin_data, sd_factor)
+region_merged = region_merge(bin_data, regions, sd_factor)
+
+bands = bins2bands(bin_data, cytobands, sd_factor)
+karyotype_to_report = karyotype(bands)
+
+reported_genes = genes_finder(bin_data, all_genes, cancer_genes, sd_factor)
+
+# create.plots(path.output, patient_name, bin_data, cytobands, region_merged, sd_factor)
+plot_all_chromosomes = plot_genome_wide_cnv(bin_data)
+```
+
+
+## Calculated numerical karyotype:
+```{r echo = FALSE}
+kable(karyotype_to_report$Aberration, col.names = NULL, align = "l", "html")
+
+```
+
+
+## Genes affected by CNVs :
+```{r echo = FALSE}
+kable(reported_genes[ , 1:6], align = "l")
+```
+#### Bailey et al. (2018): Comprehensive Characterization of Cancer Driver Genes and Mutations. In: Cell 173 (2), 371-385.e18. DOI: 10.1016/j.cell.2018.02.060.;
+#### Papaemmanuil et al. (2016): Genomic Classification and Prognosis in Acute Myeloid Leukemia. In: The New England journal of medicine 374 (23), S. 2209–2221. DOI: 10.1056/NEJMoa1516192.
+
+
+## Karyotype overview:
+```{r echo = FALSE, fig.width=12, fig.height=8}
+plot_all_chromosomes
+```
+
+
+## Chromosome Plots:
+```{r echo = FALSE, fig.width=12, fig.height=5}
+
+chrn= "chr0"
+  for (chrn in unique(patient$Chr)) {
+    plot_patient = plot_bins_regions_ideogram(bin_data, cytobands, region_merged,
+                                              chrn, sd_factor)
+  }
+```
+
+  

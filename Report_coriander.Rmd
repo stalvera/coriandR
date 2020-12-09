@@ -1,12 +1,11 @@
 ---
-title: "Report coriandR"
-author: "Koch V."
+title: "Report CORIANDR: ChrOmosomal abeRration Identifier AND Reporter in R"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: pdf_document
 ---
 
 ```{r, setup, include=FALSE}
-#knitr::opts_knit$set(root.dir = "~/diss/CORIANDER/r.script.coriander/output/120517/")
+#knitr::opts_knit$set(root.dir = "/media/vera/big_data/coriandR/output//")
 knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
 ```
 
@@ -15,7 +14,6 @@ knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 patient.data = read.table("patient.data.tsv", stringsAsFactors = F)
 patient_name = patient.data[1, 2]
 gender = as.character(patient.data[2, 2])
-paste0("Patient ", patient_name)
 ```
 
 
@@ -39,8 +37,8 @@ bin_data$Start = as.integer(bin_data$Start)
 bin_data$End = as.integer(bin_data$End)
 # pon wurde bereits erzuegt, normalisiert und mit den statistischenwerten versehen!
 
-cytobands = read.table("../../tables/cytobands.tsv", header=TRUE, row.names = 1, stringsAsFactors = F)
-# die farben sind bereits enthalten!
+cytobands = read.table("../../tables/cytobands_sort.2.tsv", header=TRUE, sep = "\t", row.names = 1, stringsAsFactors = F)
+  # die farben sind bereits enthalten!
 cancer_genes = read.table("../../tables/cancer.driver.genes_unique.and.goi.aml.csv", header=TRUE, sep = "\t",
                           stringsAsFactors = F)
 all_genes = read.table("../../tables/all_genes.tsv", header=TRUE, row.names = 1, stringsAsFactors = F)
@@ -52,7 +50,7 @@ all_genes$end = as.integer(all_genes$end)
 ```{r echo = FALSE}
 stats = read.table("mapping.stats.tsv", stringsAsFactors = F)
 stats[nrow(stats) +1, ] = list(as.character("unique_mapped_reads"), sum(patient[ , 6]))
-stats[nrow(stats) +1, ] = list(as.character("patient ID"), patient_name)
+stats[nrow(stats) +1, ] = list(as.character("SAMPLE_ID"), patient_name)
 stats[nrow(stats) +1, ] = list(as.character("gender"), gender)
 
 library(knitr)
@@ -354,7 +352,7 @@ karyotype = function(bands) {
   karyotype_to_report = suspected_bands[1, ]
   
   karyotype_to_report$Aberration = NA
-  if(nrow(suspected_bands) < 1) return(karyotype_to_report)
+  if(nrow(suspected_bands) < 2) return(karyotype_to_report)
   
   k = 1
   # der zaehler in der tabelle karyotype_to_report
@@ -483,8 +481,7 @@ plot_bins_regions_ideogram <- function(bin_data, cytobands, region_merged,
                                 color = "gray", size = 0.5, alpha = 0.4) +
     
                   theme_bw() +
-                  labs(title = "Plot patient vs PON with 3*SD", subtitle = chrn,
-                  x = "Regions", y = "Mappable Reads")
+                  labs(title = chrn, x = "Regions", y = "Reads ratio")
   print(plot_patient)
   return(plot_patient)
 }
@@ -560,7 +557,7 @@ plot_genome_wide_cnv = function(bin_data) {
                           theme(panel.grid.minor=element_blank(), axis.text.x = element_blank(), legend.position="none") +
                           scale_x_discrete(breaks = coordinates_genome_wide[ , "Offset"],
                                            labels = coordinates_genome_wide[ , "Chr"]) +
-                          labs(title = "Plot all chromosomes", x = "Chromosomes", y = "Reads")
+                          labs(x = "Chromosomes", y = "Reads ratio")
   
   # hier brauchen wir eine Bedingung fuer die Gesunden, die keine Aberrationen aufweisen
 
@@ -620,26 +617,30 @@ plot_all_chromosomes = plot_genome_wide_cnv(bin_data)
 ```
 
 
-## Karyotype:
+## Calculated numerical karyotype:
 ```{r echo = FALSE}
 kable(karyotype_to_report$Aberration, col.names = NULL, align = "l", "html")
 
 ```
 
 
-## Genes from AMl Guidline 2016 or cancer driver genes paper:
+## Genes affected by CNVs\*:
 ```{r echo = FALSE}
 kable(reported_genes[ , 1:6], align = "l")
 ```
 
+> Bailey et al. (2018): Comprehensive Characterization of Cancer Driver Genes and Mutations. Cell 173 (2), 371-385.e18. DOI: 10.1016/j.cell.2018.02.060.;
 
-## All genome:
+> Papaemmanuil et al. (2016): Genomic Classification and Prognosis in Acute Myeloid Leukemia. The New England journal of medicine 374 (23), S. 2209–2221. DOI:10.1056/NEJMoa1516192.
+
+
+## Karyotype overview:
 ```{r echo = FALSE, fig.width=12, fig.height=8}
 plot_all_chromosomes
 ```
 
 
-## All chromosomes:
+## Chromosome Plots:
 ```{r echo = FALSE, fig.width=12, fig.height=5}
 
 chrn= "chr0"
@@ -648,5 +649,9 @@ chrn= "chr0"
                                               chrn, sd_factor)
   }
 ```
+
+#### The legend contains two characteristics:
+> 1. Giemsa stain results. Recognized stain values: gneg, gpos50, gpos75, gpos25, gpos100, acen, gvar, stalk.
+> 2. The abnormal regions (add or del).
 
   

@@ -19,11 +19,11 @@ cd $2
 source config.txt
 
 printf "Mapping with Bowtie2 ... \n"
-for f in *_R1_001.fastq.gz; do n=$(echo $f | sed 's/_R1_001.fastq.gz//') ; echo $n; bowtie2 -x $index -p 8 -1 ${n}_R1_001.fastq.gz -2 ${n}_R2_001.fastq.gz | sam2bam $n.bam; done 2> logs.bowtie.txt
+for f in *_R1_001.fastq.gz; do n=$(echo $f | sed 's/_R1_001.fastq.gz//') ; echo $n; bowtie2 -x $index -p 8 -1 ${n}_R1_001.fastq.gz -2 ${n}_R2_001.fastq.gz | ~/bin/bioinfo-toolbox/sam2bam.sh $n.bam; done 2> logs.bowtie.txt
 printf "was successful\n"
 
 printf "PoN samples read-table ... "
-~/bin/subread-2.0.0-source/bin/featureCounts -a $gtf -o pon.fc.tsv -T $(nproc) *.bam 2> logs.featureCounts.txt
+featureCounts -a $gtf -o pon.fc.tsv -T $(nproc) *.bam 2> logs.featureCounts.txt
 printf "was created with FeatureCounts\n "
 
 printf "The normalisation and calculation of statistical parameters in R ... "

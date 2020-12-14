@@ -17,12 +17,12 @@ printf "unique_reads\t" > output/$1/mapping.stats.tsv; zcat $3 | awk 'NR%4==2{pr
 printf "were generated\n"
 
 printf "Mapping with Bowtie2 ... "
-bowtie2 -x $index -p $(nproc) -1 $3 -2 $4 | sam2bam output/$1/patient.bam 2> output/$1/logs.bowtie.txt
+bowtie2 -x $index -p $(nproc) -1 $3 -2 $4 | ~/bin/bioinfo-toolbox/sam2bam.sh output/$1/patient.bam 2> output/$1/logs.bowtie.txt
 printf "was successful\n"
 
 printf "Sample table ... "
-~/bin/subread-2.0.0-source/bin/featureCounts -a $gtf -o output/$1/patient.fc.tsv -T $(nproc) output/$1/patient.bam 2> output/$1/logs.featureCounts.txt
-printf "was with FeatureCounts\n"
+featureCounts -a $gtf -o output/$1/patient.fc.tsv -T $(nproc) output/$1/patient.bam 2> output/$1/logs.featureCounts.txt
+printf "was created with FeatureCounts\n"
 
 printf "Sample data ... "
 printf "id\t$1" > output/$1/patient.data.tsv; printf "\ngender\t$2\n" >> output/$1/patient.data.tsv
@@ -35,7 +35,7 @@ R -e "rmarkdown::render('output/$1/Report_coriander.Rmd')"
 #pandoc --data-dir=pwd Report_coriander.Rmd
 printf "was successful\n"
 
-printf "You can find the report under Report_coriander.pdf in folder ./coriandR/output/$1 \n "
+printf "You can find the report under Report_coriander.pdf in folder ~/coriandR/output/$1 \n "
 
 rm output/$1/patient.bam
 

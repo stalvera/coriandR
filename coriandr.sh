@@ -13,7 +13,7 @@ mkdir -p output/$1
 cp -p -v $pon output/$1/pon.tsv
 
 printf "Mapping statistics ... "
-printf "unique_reads\t" > output/$1/mapping.stats.tsv; zcat $3 | awk 'NR%4==2{print}' | sort | uniq -c | wc -l >> output/$1/mapping.stats.tsv; zcat $3 | awk 'NR%4==2{a+=length($1)}END{print "average_length\t"(a/NR*4)}' >> output/$1/mapping.stats.tsv
+printf "raw_read_pairs\t" > output/$1/mapping.stats.tsv; zcat $3 | awk 'NR%4==2{print}' | sort | uniq -c | wc -l >> output/$1/mapping.stats.tsv; zcat $3 | awk 'NR%4==2{a+=length($1)}END{print "average_read_length\t"(a/NR*4)}' >> output/$1/mapping.stats.tsv
 printf "were generated\n"
 
 printf "Mapping with Bowtie2 ... "

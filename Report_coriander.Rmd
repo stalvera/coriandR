@@ -47,16 +47,52 @@ all_genes$end = as.integer(all_genes$end)
 
 ```
 
-```{r echo = FALSE}
-stats = read.table("mapping.stats.tsv", stringsAsFactors = F)
-stats[nrow(stats) +1, ] = list(as.character("unique_mapped_reads"), sum(patient[ , 6]))
-stats[nrow(stats) +1, ] = list(as.character("SAMPLE_ID"), patient_name)
-stats[nrow(stats) +1, ] = list(as.character("gender"), gender)
 
-library(knitr)
-kable(stats, digits = 0, col.names = NULL, align = "l")
+## Sample ID
+```{r echo = FALSE}
+cat(patient_name)
 ```
 
+```{r echo = FALSE}
+stats = read.table("mapping.stats.tsv", stringsAsFactors = F)
+stats[nrow(stats) +1, ] = list(as.character("unique_mapped_pairs"), round(sum(patient[ , 6])/2))
+#stats[nrow(stats) +1, ] = list(as.character("SAMPLE_ID"), patient_name)
+stats[nrow(stats) +1, ] = list(as.character("gender"), gender)
+
+stats[ , 1] = c("row read pairs", "average read length", "unique mapped pairs", "gender")
+
+library(knitr)
+kable(stats, digits = 0, col.names = NULL, align = "r")
+```
+
+## Distribution of bin depth in sample
+```{r echo = FALSE}
+#Histogramm mit density in ggplot2
+
+ggplot(data = patient, mapping = aes(x = patient[ , 6])) +
+         geom_histogram(aes(y = stat(density)), binwidth = 10) +
+         geom_density(data = bin_data, aes(x = mean * median(patient[, 6], na.rm = TRUE)/2), color = "steelblue3") +
+         xlim(0, median(patient[, 6])*2.5) +
+         xlab(" ") +
+         theme_classic()
+```
+
+> This graph shows the distribution of the bins according to the depth of the sequencing. The blue curve represents the distribution of the bins in the PON. Ideally, the histogram and the blue curve match completely. If not, this can indicate larger deletions (the first peak decreases) or larger amplifications (the third peak increases). 
+
+```{r echo = FALSE}
+# Histogramm mit R Base Graphik
+#hist(patient[, 6], breaks=seq(0, max(patient[, 6]) + 10, by = 10), xlim = c(0, median(patient[, 6])*2.5))
+#abline(v = c(0.5, 1, 1.5, 2) *median(patient[, 6]), col = 'red', lty = 2)
+#axis(3, c(0.5, 1, 1.5, 2) *median(patient[, 6]), c(0.5, 1, 1.5, 2), line = 1, tick = F, col = 'red')
+#dens <- density(bin_data[!is.na(bin_data$mean), "mean"]*median(patient[, 6]))
+
+#lines(dens)
+
+#patient$norm = patient[, 6] /median(patient[, 6])*2
+#hist(patient$norm, breaks=seq(0, max(patient$norm) + 1, by = 0.02), xlim = c(0, 4))
+#abline(v = c(1, 2, 3, 4), col = 'red', lty = 2)
+
+```
 
 ```{r echo = FALSE}
 
@@ -597,7 +633,7 @@ plot_genome_wide_cnv = function(bin_data) {
 }
 ```
 
-```{r echo = FALSE}
+```{r echo = FALSE, warning = FALSE}
 bin_data = pon.gender.adjust(bin_data, gender)
 patient = patient_normalization(patient, 6)
 bin_data = unite.data(bin_data, patient)

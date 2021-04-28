@@ -12,43 +12,32 @@ cp -p -v report.create.a.pon.and.stats.Rmd $2
 
 printf "PON data ... "
 printf "$1\t" > $2/pon.data.tsv; printf "$2\t" >> $2/pon.data.tsv; printf $3 >> $2/pon.data.tsv
-printf "were generated\n\n"
+printf "were generated\n"
 
 cd $2
 
 source config.txt
 
-printf "Mapping with Bowtie2 ... \n"
-for f in *_R1_001.fastq.gz; do n=$(echo $f | sed 's/_R1_001.fastq.gz//') ; echo $n; bowtie2 -x $index -p 8 -1 ${n}_R1_001.fastq.gz -2 ${n}_R2_001.fastq.gz | sam2bam $n.bam; done 2> logs.bowtie.txt
-printf "was successful\n\n"
-
 printf "PON subjects read-table ... "
 ~/bin/subread-2.0.0-source/bin/featureCounts -a $gtf -o pon.fc.tsv -T $(nproc) *.bam 2> logs.featureCounts.txt
-printf "was created with FeatureCounts\n\n "
+printf "was created with FeatureCounts\n "
 
 printf "GC content of the PON subjects ... "
 samtools faidx $reference -o GRCh38.p13.genome.fa.fai
 cut -f 1,2 $reference.fai | sed -n '/chr/p' > GRCh38.p13.genome.sizes
 bedtools makewindows -g GRCh38.p13.genome.sizes -w 1000000 > GRCh38.p13.genome.1M.bed
 bedtools nuc -fi $reference -bed GRCh38.p13.genome.1M.bed > GRCh38.p13.genome.1M.nucl 
-printf "was calculated with bedtools \n\n"
+printf "was calculated with bedtools \n"
 
 printf "The normalisation of PON and calculation of statistical parameters in R ... "
 R -e "rmarkdown::render('report.create.a.pon.and.stats.Rmd')"
 #pandoc --data-dir=pwd report.create.a.pon.and.stats.Rmd
-printf "was successful\n\n"
+printf "was successful\n"
 
 printf "You can find the report under report.create.a.pon.and.stats.pdf in folder $2 \n "
 
 rm report.create.a.pon.and.stats.Rmd
 rm config.txt
-rm *.bam
-rm *.bai
 rm pon.data.tsv
-rm GRCh38.p13.genome.sizes
-rm GRCh38.p13.genome.1M.bed
-rm GRCh38.p13.genome.1M.nucl
-
-printf "BAM files have been deleted \n\n "
 
 printf "You can find the PoN table under $1.tsv in folder $2 \n"

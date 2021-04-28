@@ -10,7 +10,7 @@ output: pdf_document
 
 ```{r, include=FALSE}
 #pfad zum ordner, falls skript manuell ausgefuehrt wird
-knitr::opts_knit$set(root.dir = "/media/vera/big_data/mr_genoms/pon.marburg.compliete")
+#knitr::opts_knit$set(root.dir = "/media/vera/big_data/mr_genoms/pon.marburg.compliete")
 library(knitr)
 knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
 knitr::opts_chunk$set(dev = "png", dev.args = list(type = "cairo-png"))
@@ -18,15 +18,15 @@ knitr::opts_chunk$set(dev = "png", dev.args = list(type = "cairo-png"))
 
 ```{r, data definition, echo = FALSE}
 # data definition
-pon.data = read.table("/media/vera/big_data/mr_genoms/pon.marburg.compliete/pon.data.tsv", stringsAsFactors = F)
+pon.data = read.table("pon.data.tsv", stringsAsFactors = F)
 pon.name = pon.data[1,1]
 fastq.dir = pon.data[1,2]
 gender.dir = pon.data[1,3]
 
 # gc-gehalt, erstellt mit bedtools
-gc = read.table("/media/vera/big_data/mr_genoms/pon.marburg.compliete/GRCh38.p13.genome.1M.nucl", stringsAsFactors = T)
+gc = read.table("GRCh38.p13.genome.1M.nucl", stringsAsFactors = T)
 
-pon = read.table("/media/vera/big_data/mr_genoms/pon.marburg.compliete/pon.fc.tsv", header = TRUE, row.names = 1, stringsAsFactors = T)
+pon = read.table("pon.fc.tsv", header = TRUE, row.names = 1, stringsAsFactors = T)
 gender_pon = read.table(gender.dir, header = TRUE, sep = ",", row.names = 1)
 pon.cols = grep("bam", names(pon))  # which columns have the actual data
 
@@ -274,7 +274,7 @@ pon.norm.clean = data.frame(t(apply(pon.norm, 1, function(x) {x[x < qnorm(0.01, 
 
 \newpage
 # Masking high variance bins
-> The bins that were excluded from the statistical calculations are shown in red: red cross - because of GC content, red point - because of variance.
+> The bins that were excluded from the statistical calculations are shown in red: red cross - by GC content, red point - by variance.
 
 ```{r, Masking high variance bins, echo = FALSE, fig.width = 12, fig.height = 5}
 pon$norm.clean.var = c(apply(pon.norm.clean, 1, var, na.rm=T))
@@ -309,7 +309,7 @@ lines(350:550/1000, gc.var.clean)
 
 ```{r, Normalized Abundance, echo = FALSE, fig.width = 5, fig.height = 4}
 plot(rep(pon$gc, ncol(pon.norm)), c(as.matrix(pon.norm.clean)), pch=20, xlim=c(0.2, 0.7), ylim=c(0, 4),
-     col=gray(1:length(pon.cols)/length(pon.cols), alpha=0.1), xlab="GC-content",
+     col="steelblue4", xlab="GC-content",
      ylab="Normalized Abundance", las = 1, cex = 0.5)
 ```
 
@@ -358,7 +358,7 @@ lines(pon$bin, pon$norm.pat, lwd=0.5)
 
 
 
-```{r, PON normalisation, echo = FALSE}
+```{r, PON normalisation old function, echo = FALSE}
 # The normalisation of Panel of normals by median
 #panel_of_normals_normalization <- function(pon) {
 #  pon_norm <- pon[ , 1:5]
@@ -383,6 +383,6 @@ lines(pon$bin, pon$norm.pat, lwd=0.5)
 
 #pon = means_panel_of_normals(pon)
 
-#write.table(pon, file = paste0(pon.name, ".tsv"), sep = "\t", row.names = TRUE, col.names = NA)
+write.table(pon, file = paste0(pon.name, ".tsv"), sep = "\t", row.names = TRUE, col.names = NA)
 ```
 

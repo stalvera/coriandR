@@ -42,6 +42,7 @@ names(pon)[meta$pon.col] = meta$sample
 
 # gc-gehalt, erstellt mit bedtools
 gc = read.table("genome/GRCh38.p13.genome.1M.nucl", stringsAsFactors = T)
+pon$gc = gc[gc$V1 != 'chrM', 5]
 ```
 
 ```{r, PON gender segregation, echo = FALSE}
@@ -165,7 +166,7 @@ pon$sum = rowSums(pon[, meta$pon.col], na.rm=T)
 
 plot(pon$bin, pon$sum, ylim = c(0, qnorm(0.999, mean(pon$sum), sd(pon$sum))),
      col = ifelse(pon$sum < qnorm(0.01, mean = mean(pon$sum), sd=sd(pon$sum)) | pon$sum > qnorm(0.99, mean = mean(pon$sum), sd = sd(pon$sum), lower.tail=T), "tomato3", "#11111111"),
-     pch = 16, xaxt="n", xlab="", las = 1, ylab="Read depth")
+     pch = 16, xaxt="n", xlab="", las = 1, ylab="Read depth", xaxs="i")
 abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
 with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=1, cex=0.5, tick=F))
 with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=0, cex=0.5, tick=F))
@@ -222,45 +223,10 @@ with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line
 
 > Quinlan A. R. (2014). BEDTools: The Swiss-Army Tool for Genome Feature Analysis. Current protocols in bioinformatics, 47, 11.12.1–11.12.34. doi: 10.1002/0471250953.bi1112s47.
 
-```{r, compute.GC-content, echo = FALSE}
-# gc gehalt muss auch gegendert werden
-
-gendering_gc <- function(gc) {
-  
-  # zuerst das X-Chromosom in chrX_F und chrX_M aufteilen
-  chrn = "chrX"
-  # in eine separate tabelle werden alle zeilen von x-chr reingepackt
-  gc.copy = gc[gc$V1 == chrn, ]
-  # allen zeilen wird der suffix "_M" zugewiesen
-  gc.copy$V1 = paste0(gc.copy$V1, "_M")
-  gc.new = rbind(gc, gc.copy)
-  
-  gc.copy = gc[gc$V1 == chrn, ]
-  gc.copy$V1 = paste0(gc.copy$V1, "_F")
-  gc.new = rbind(gc.new, gc.copy)
-  
-  # dann Y-Chromosom
-  chrn = "chrY"
-  gc.copy = gc[gc$V1 == chrn, ]
-  gc.copy$V1 = paste0(gc.copy$V1, "_M")
-  gc.new = rbind(gc.new, gc.copy)
-  
-  gc.copy = gc[gc$V1 == chrn, ]
-  gc.copy$V1 = paste0(gc.copy$V1, "_F")
-  gc.new = rbind(gc.new, gc.copy)
-  
-  # zeilen mit den eigentlichen X- und Y-chromosomen loeschen
-  gc.new = gc.new[!(gc.new$V1 == "chrX" | gc.new$V1 == "chrY"), ]
-  gc = gc.new
-}
-
-gc = gendering_gc(gc)
-pon$gc = gc[gc$V1 != 'chrM', 5]
-```
 
 ```{r, plot.GC-content, echo = FALSE, fig.width = 5, fig.height = 4}
 
-plot(rep(pon$gc, ncol(pon.norm)), c(as.matrix(pon.norm)), pch=20, xlim=c(0.2, 0.7), ylim=c(0, 4),
+plot(rep(pon$gc, ncol(pon.norm)), c(as.matrix(pon.norm)), pch=20, xlim=c(0.2, 0.6), ylim=c(0, 4),
      col = "#11111105",
      xlab="GC-content", ylab="Normalized Abundance", las = 1, cex = 0.5)
 ```
@@ -276,8 +242,8 @@ pon$gc_blocked = pon$gc < qnorm(0.3, mean(pon$gc, na.rm=T), sd(pon$gc, na.rm=T))
 plot(pon$gc, pon$norm.var, pch=20, ylim=c(0.0001, 0.3), xlim=c(0.2, 0.6),
      col=ifelse(pon$gc_blocked, "tomato3", "#11111111"),
      xlab="GC-content", ylab="Variance of normalized abundance", las = 1, cex = 0.5)
-gc.var = predict(loess(norm.var ~ gc, pon[pon$gc > 0.35 & pon$gc < 0.6,]), 350:600/1000)
-lines(350:600/1000, gc.var)
+gc.var = predict(loess(norm.var ~ gc, pon[pon$gc > 0.35 & pon$gc < 0.6,], span=0.5), 350:600/1000)
+lines(350:600/1000, gc.var, col="blue")
 #library(robust)
 #lines(predict(glmRob(norm.var ~ gc, pon[pon$gc > 0.35 & pon$gc < 0.6,], family="poisson"), newdata=data.frame(gc=350:550/1000)), col="red")
 ```
@@ -317,10 +283,10 @@ pon.norm.clean = data.frame(t(apply(pon.norm, 1, function(x) {x[x < qnorm(0.01, 
 
 ```{r, Masking high variance bins, echo = FALSE, fig.width = 12, fig.height = 5}
 pon$norm.clean.var = c(apply(pon.norm.clean, 1, var, na.rm=T))
-pon$var_blocked = pon$sum < 1 | pon$norm.clean.var > qnorm(0.5, mean(pon$norm.clean.var[!pon$gc_blocked], na.rm=T), sd(pon$norm.clean.var[!pon$gc_blocked], na.rm=T))
+pon$var_blocked = pon$sum < 1 | pon$norm.clean.var > qnorm(0.9, mean(pon$norm.clean.var[!pon$gc_blocked], na.rm=T), sd(pon$norm.clean.var[!pon$gc_blocked], na.rm=T))
 
 plot(rep(pon$bin, nrow(meta)), c(as.matrix(pon.norm.clean)),
-     col=ifelse(pon$var_blocked, "tomato3", "#11111105"), pch=ifelse(pon$gc_blocked, 4, 16),
+     col=ifelse(pon$var_blocked, "#aa331155", "#11111105"), pch=ifelse(pon$gc_blocked, 4, 16),
      ylim=c(0, 4), yaxs="i",
      xaxt="n", xlab="Chromosomes", las = 1, ylab="Ploidy", xaxs="i")
 abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
@@ -339,9 +305,9 @@ pon$norm.pat[pon$var_blocked | pon$gc_blocked] = NA
 
 # die graphik mit der regressionskurve, die zeigt, dass die varianz nicht vom gc-gehalt abhängig ist
 # soll nicht mit in den report aufgenommen werden, sondern argumentativ eingesetzt
-plot(pon$gc, pon$norm.clean.var, col="#44991105", pch=19, ylim=c(0.00001, 0.3), xlim=c(0.2, 0.7), xlab="GC-content", ylab="Variance of normalized abundance", las = 1, cex = 0.5)
-gc.var.clean = predict(loess(norm.clean.var ~ gc, pon[pon$gc > 0.35 & pon$gc < 0.6,]), 350:550/1000)
-lines(350:550/1000, gc.var.clean)
+plot(pon$gc, pon$norm.clean.var, col="#44991105", pch=19, ylim=c(0.00001, 0.3), xlim=c(0.2, 0.6), xlab="GC-content", ylab="Variance of normalized abundance", las = 1, cex = 0.5)
+gc.var.clean = predict(loess(norm.clean.var ~ gc, pon[pon$gc > 0.33 & pon$gc < 0.6,], span=0.5), 330:550/1000)
+lines(330:550/1000, gc.var.clean, col="blue")
 #lines(pon$gc[pon$gc > 0.35 & pon$gc < 0.6], c(robust::glmRob(norm.clean.var ~ gc, pon[pon$gc > 0.35 & pon$gc < 0.6,], family="poisson")$fitted.values), col="red")
 #plot(robust::glmRob(norm.clean.var ~ gc, pon, family="poisson"))
 ```
@@ -349,7 +315,7 @@ lines(350:550/1000, gc.var.clean)
 ## Normalized Abundance
 
 ```{r, Normalized Abundance, echo = FALSE, fig.width = 5, fig.height = 4}
-plot(rep(pon$gc, ncol(pon.norm)), c(as.matrix(pon.norm.clean)), pch=20, xlim=c(0.2, 0.7), ylim=c(0, 4),
+plot(rep(pon$gc, ncol(pon.norm)), c(as.matrix(pon.norm.clean)), pch=20, xlim=c(0.2, 0.6), ylim=c(0, 4),
      col="#11111105", xlab="GC-content",
      ylab="Normalized Abundance", las = 1, cex = 0.5)
 ```

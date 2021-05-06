@@ -81,8 +81,23 @@ gendering_pon <- function(pon, meta) {
   pon.new = pon.new[!(pon.new$Chr == "chrX" | pon.new$Chr == "chrY"), ]
   pon = pon.new
 }
+#pon = gendering_pon(pon, meta)
 
-pon = gendering_pon(pon, meta)
+ponXf = pon[pon$Chr == "chrX", ]
+ponXf$Chr = "chrX_F"
+ponXf[, meta$sample[meta$gender != "F"]] = NA
+
+ponXm = pon[pon$Chr == "chrX", ]
+ponXm$Chr = "chrX_M"
+ponXm[, meta$sample[meta$gender != "M"]] = NA
+
+ponYm = pon[pon$Chr == "chrY", ]
+ponYm$Chr = "chrY_M"
+ponYm[, meta$sample[meta$gender != "M"]] = NA
+
+
+pon = rbind(pon[!pon$Chr %in% c("chrX", "chrY"), ], ponXf, ponXm, ponYm)
+
 ```
 
 

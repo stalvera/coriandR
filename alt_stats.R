@@ -38,7 +38,8 @@ axis(1, contigs, colnames(contigs))
 
 # Normalizing PON by median
 pon.norm = pon[, pon.cols]
-pon.norm = data.frame(t(t(pon.norm)/apply(pon.norm, 2, median)*2))
+pon.norm = data.frame(t(t(pon.norm)/apply(pon.norm, 2, sum, na.rm=T)))
+pon.norm = data.frame(pon.norm/apply(pon.norm, 1, median, na.rm=T)*2)
 pon$norm.var = c(apply(pon.norm, 1, var, na.rm=T))
 pon$norm.pat = pon$pat/median(pon$pat)*2
 plot(c(t(pon.norm)), rep(1:length(pon.cols), nrow(pon)), xlab="#Reads", ylab="Subjects", yaxt="n",
@@ -58,7 +59,7 @@ plot(rep(pon$gc, ncol(pon.norm)), c(as.matrix(pon.norm)), pch=19, xlim=c(0.2, 0.
 library(robust)
 pon$norm.var = c(apply(pon.norm, 1, var, na.rm=T))
 plot(pon$gc, pon$norm.var, col="#33ff3311", pch=19, ylim=c(0.0001, 0.3), xlim=c(0.3, 0.6), xlab="GC-content", ylab="Variance of normalized abundance")
-gc.var = predict(loess(norm.var ~ gc, pon[pon$gc > 0.35 & pon$gc < 0.6,]), 350:550/1000)
+gc.var = predict(loess(norm.var ~ gc, pon[pon$gc > 0.3 & pon$gc < 0.6,]), 350:550/1000)
 lines(350:550/1000, gc.var)
 #lines(predict(glmRob(norm.var ~ gc, pon[pon$gc > 0.35 & pon$gc < 0.6,], family="poisson"), newdata=data.frame(gc=350:550/1000)), col="red")
 
@@ -80,7 +81,7 @@ abline(v=c(pon$bin[pon$Start == 1], nrow(pon)))
 axis(1, contigs, colnames(contigs))
 
 pon$norm.clean.var = c(apply(pon.norm.clean, 1, var, na.rm=T))
-pon$var_blocked = pon$norm.clean.var > qnorm(0.5, mean(pon$norm.clean.var[!pon$gc_blocked], na.rm=T), sd(pon$norm.clean.var[!pon$gc_blocked], na.rm=T))
+pon$var_blocked = pon$sum < 1 | pon$norm.clean.var > qnorm(0.5, mean(pon$norm.clean.var[!pon$gc_blocked], na.rm=T), sd(pon$norm.clean.var[!pon$gc_blocked], na.rm=T))
 
 
 plot(rep(pon$bin, length(pon.cols)), c(as.matrix(pon.norm.clean)), ylim=c(0, 6),
@@ -111,4 +112,16 @@ plot(rep(pon$bin, length(pon.cols)), c(as.matrix(pon.norm.clean)), ylim=c(0, 4),
 abline(v=c(pon$bin[pon$Start == 1], nrow(pon)))
 axis(1, contigs, colnames(contigs))
 lines(pon$bin, pon$norm.pat, lwd=0.5)
+
+rate = with(pon[!(pon$gc_blocked | pon$var_blocked), ], sum(pat)/sum(sum))
+sd = sd(unlist(pon.norm.clean)/2, na.rm=T)
+pon$pat.z = (pon$norm.pat-2)/2 / sd
+pon$binom = apply(pon[, c("pat", "sum")], 1, function(x) ifelse(x[2] > 0, binom.test(x[1], x[2], rate)$p.value, 1))
+pon$binom.adjust = p.adjust(pon$binom, method="hochberg")
+pon$ttest = ifelse(pon$gc_blocked | pon$var_blocked, 1, 2*pnorm(q=-abs(pon$pat.z)))
+
+plot(seq(from=-10, to=10, by=0.1), dnorm(seq(from=-10, to=10, by=0.1)), type='l', col="gray",
+     main="Patien z-values compared to estimated PON distribution", ylab="Density", xlab="z-value")
+lines(density(pon$pat.z, na.rm=T), col="red")
+legend("topright", legend=c("Estimated PON", "Patient"), col=c("gray", "red"), lty=1)
 

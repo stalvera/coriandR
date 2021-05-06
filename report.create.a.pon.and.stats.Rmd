@@ -7,6 +7,8 @@ params:
   pon_name: pon
 ---
 
+# Generating PON: "`r params$pon_name`"
+
 This report documents the creation of the Panel of Normals (PON) from sequencing runs of healthy individuals, which is later used in Copy Number Variantion analysis of single patient data on the same sequencing platform with `coriandR`.
 
 This PON has to be generated only once, mapping at least three healthy sequencing libraries against the human genome using `bowtie2` and counted with `featureCounts` as specified in the accompanying documentation.
@@ -17,7 +19,7 @@ knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 knitr::opts_chunk$set(dev = "png", dev.args = list(type = "cairo-png"))
 ```
 
-# Raw Library Counts
+## Raw Library Counts
 
 Per default raw read counts per library are counted with `featureCounts` for the entire PON at once and stored in the `r params$pon_name`.`fc.tsv` file by the user.
 
@@ -33,7 +35,8 @@ pon = read.table(paste0(params$pon_name, ".fc.tsv"), header = TRUE, stringsAsFac
 
 if(nrow(meta) != ncol(pon)-6) {print("PON meta file and featureCounts of PON have different number of samples"); knitr::knit_exit()}
 
-meta$pon.col = unlist(sapply(meta$sample, function(x) grep(gsub("-", ".", x), names(pon))))
+meta$pon.col = as.vector(as.numeric(sapply(meta$sample, function(x) grep(gsub("-", ".", x), names(pon)), simplify=T)))
+if(any(is.na(meta$pon.col))) {print("PON meta file and featureCounts of PON have different names of samples"); knitr::knit_exit()}
 
 names(pon)[meta$pon.col] = meta$sample
 
@@ -82,17 +85,14 @@ gendering_pon <- function(pon, meta) {
 pon = gendering_pon(pon, meta)
 ```
 
-## PON name
-```{r, PON name, echo = FALSE}
-print(params$pon_name)
-```
 
-# Sequencing depth of individual PON subjects
-> On a log-Scale we see that the PON data is similarly distributed at different sequencing depths.
 
-> In this graphic, individual PON subjects are represented with their genders. It is a logarithmic representation of the sequencing depth.
+### Sequencing depth of individual PON subjects
+The following plot shows the sequencing depth of different PON libraries on a logarithmic scale per megabase.
 
-> The subjects should have roughly the same sequencing depth. The male subjects have two point clouds (the first for the single X chromosome and the second for the double somatic chromosomes).
+Optimally all samples should be well above 100 and within the red dotted lines, representing $1/4$ and $4$ times the **median** sequencing depth.
+
+Gender annotation of the samples should match distributions with one single cluster in females (F) or two distinctive clusters for autosomes and single copy X and Y chromosomes in males (M).
 
 ```{r, Reading in the PON and Patient counts, warning=F, fig.height=12, fig.width=7, echo = FALSE}
 # Reading in the PON and Patient counts
@@ -106,6 +106,8 @@ par(mar=c(3, 15, 1, 3), cex=0.7)
 plot(c(t(pon[ ,meta$pon.col])), rep(1:nrow(meta), nrow(pon)),
      log = "x", xlab="Read depth", ylab="", yaxt = "n",
      pch = 20, col="#11111105")
+
+abline(v=c(0.25, 4)*median(c(t(pon[ ,meta$pon.col])), na.rm=T), col='red', lty=2)
 
 axis(4, 1:nrow(meta), las = 1, meta$gender)
 axis(2, 1:nrow(meta), las = 1, meta$sample)
@@ -132,11 +134,14 @@ axis(2, 1:nrow(meta), las = 1, meta$sample)
 ```
 
 
-# Cumulative PON
+### Cumulative PON
+For later statistics the read counts of the PON are summed up over each bin.
 
-> Bins with counts outside of 99% of the normal distribution are marked in red. These should probably be masked in the end.
+Ideally, autosomes show up as a straight line of dots with minimal noise well above a read depth of at least 1000 reads per megabase.
 
-> The values of gonosomes for men and women are represented: (from left to right) X male, X female, Y male, Y female. 
+Bins with counts outside of 99% of the normal distribution are marked in red. These should probably be masked in the end.
+
+The values of gonosomes for men and women are represented: (from left to right) X male, X female, Y male, Y female. 
 
 ```{r, Cumulative PON, echo = FALSE, fig.width = 12, fig.height = 5}
 # One idea is to sum all PON reads of a bin up and compare/test the raw numbers with the Patient. This can be done by Binomial testing, or Testing the Odds-Ratio.
@@ -159,25 +164,26 @@ with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line
 ```
 
 \newpage
-# Normalizing PON and patient by library median
+
+
+## Normalizing PON by library size and per megabase
+In order to compare the quality of multiple PONs, read depth is normalized by overall library size and then by the median for each megabase.
 
 ```{r, Normalizing PON and patient by library median, fig.height=12, echo = FALSE}
 #Normalizing to a ploidity of 2, the PON looks much more straight forward aside from the samples with a second mode at 1 (gonosomes).
 
 pon.norm = pon[, meta$pon.col]
 #pon.norm = data.frame(t(t(pon.norm)/ apply(pon.norm, 2, median, na.rm=T)*2))
-pon.norm = data.frame(t(t(pon.norm)/(apply(pon.norm, 2, sum, na.rm=T)/1000000)))
+pon.norm = data.frame(t(t(pon.norm)/(apply(pon.norm, 2, sum, na.rm=T))))
 pon.norm = data.frame(pon.norm/apply(pon.norm, 1, median, na.rm=T)*2)
 #plot(c(t(pon.norm)), rep(1:length(pon.cols), nrow(pon)), xlab="Reads", ylab="Subjects", yaxt="n",
 #     col = hsv(1:length(pon.cols)/ length(pon.cols), alpha=0.1), pch=20, xlim=c(0, 6))
 #axis(4, 1:length(pon.cols), gender_pon$sex)
 ```
 
-> Plotted over all chromosomes, normalized to the ploidy of 2, the visual interpretation becomes very straight forward (some noise might be problematic). We have some unsightly spikes in PON, of bins with either much more or much less counts than average.
+The genome plot should result in a tight distribution arount the ploidy of 2.
 
-> As the filtering progresses, the noise around the baseline will decrease. 
-
-> The male subjects have only one copy of X and Y chromosome. 
+Gonosomes are shifted to match a ploidy of 2 in males to facilitate comparability.
 
 ```{r, Plotted over all chromosomes, echo = FALSE, fig.width = 12, fig.height = 5}
 #pon$norm.pat = pon$pat/median(pon$pat, na.rm=T)*2
@@ -268,7 +274,7 @@ lines(350:600/1000, gc.var)
 > Make sure that these points are not predominantly in the baseline. 
 
 ```{r, Masking extreme GC-content bins, echo = FALSE, fig.width = 12, fig.height = 5}
-plot(rep(pon$bin, length(pon.cols)), c(as.matrix(pon.norm)),
+plot(rep(pon$bin, nrow(meta)), c(as.matrix(pon.norm)),
      col = ifelse(pon$gc_blocked, "tomato3", "#11111105"),
      pch = 16, ylim=c(0, 4), yaxs="i",
      xaxt="n", xlab="Chromosomes", las = 1, ylab="Ploidy", xaxs="i")
@@ -298,7 +304,7 @@ pon.norm.clean = data.frame(t(apply(pon.norm, 1, function(x) {x[x < qnorm(0.01, 
 pon$norm.clean.var = c(apply(pon.norm.clean, 1, var, na.rm=T))
 pon$var_blocked = pon$sum < 1 | pon$norm.clean.var > qnorm(0.5, mean(pon$norm.clean.var[!pon$gc_blocked], na.rm=T), sd(pon$norm.clean.var[!pon$gc_blocked], na.rm=T))
 
-plot(rep(pon$bin, length(pon.cols)), c(as.matrix(pon.norm.clean)),
+plot(rep(pon$bin, nrow(meta)), c(as.matrix(pon.norm.clean)),
      col=ifelse(pon$var_blocked, "tomato3", "#11111105"), pch=ifelse(pon$gc_blocked, 4, 16),
      ylim=c(0, 4), yaxs="i",
      xaxt="n", xlab="Chromosomes", las = 1, ylab="Ploidy", xaxs="i")
@@ -346,7 +352,7 @@ plot(rep(pon$gc, ncol(pon.norm)), c(as.matrix(pon.norm.clean)), pch=20, xlim=c(0
 > An overview of the cleaned up PON. The baseline should be at 2 and the noise around the baseline should have decreased. 
 
 ```{r, corrected PON overview, echo = FALSE, fig.width = 12, fig.height = 5}
-plot(rep(pon$bin, length(pon.cols)), c(as.matrix(pon.norm.clean)),
+plot(rep(pon$bin, nrow(meta)), c(as.matrix(pon.norm.clean)),
      col ="#11111105", pch = 16, ylim=c(0, 4), yaxs="i",
      xaxt="n", xlab="Chromosomes", las = 1, ylab="Ploidy", xaxs="i")
 abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
@@ -403,6 +409,6 @@ with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line
 
 #pon = means_panel_of_normals(pon)
 
-write.table(pon, file = paste0(pon.name, ".tsv"), sep = "\t", row.names = TRUE, col.names = NA)
+write.table(pon, file = paste0(params$pon_name, ".tsv"), sep = "\t", row.names = TRUE, col.names = NA)
 ```
 

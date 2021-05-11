@@ -16,7 +16,7 @@ This PON has to be generated only once, mapping at least three healthy sequencin
 ```{r, include=FALSE}
 library(knitr)
 knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
-knitr::opts_chunk$set(dev = "png", dev.args = list(type = "cairo-png"))
+knitr::opts_chunk$set(dev = "png", dpi = 150, dev.args = list(type = "cairo-png"))
 ```
 
 ## Raw Library Counts
@@ -179,13 +179,16 @@ with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line
 #axis(1, contigs, colnames(contigs))
 ```
 
-\newpage
-
 
 ## Normalizing PON by library size and per megabase
 In order to compare the quality of multiple PONs, read depth is normalized by overall library size and then by the median for each megabase.
 
-```{r, Normalizing PON and patient by library median, fig.height=12, echo = FALSE}
+The genome plot should result in a tight distribution arount the ploidy of 2.
+
+Gonosomes are shifted to match a ploidy of 2 in males to facilitate comparability.
+
+```{r, Plotted over all chromosomes, echo = FALSE, fig.width = 12, fig.height = 5}
+
 #Normalizing to a ploidity of 2, the PON looks much more straight forward aside from the samples with a second mode at 1 (gonosomes).
 
 pon.norm = pon[, meta$pon.col]
@@ -195,13 +198,7 @@ pon.norm = data.frame(pon.norm/apply(pon.norm, 1, median, na.rm=T)*2)
 #plot(c(t(pon.norm)), rep(1:length(pon.cols), nrow(pon)), xlab="Reads", ylab="Subjects", yaxt="n",
 #     col = hsv(1:length(pon.cols)/ length(pon.cols), alpha=0.1), pch=20, xlim=c(0, 6))
 #axis(4, 1:length(pon.cols), gender_pon$sex)
-```
 
-The genome plot should result in a tight distribution arount the ploidy of 2.
-
-Gonosomes are shifted to match a ploidy of 2 in males to facilitate comparability.
-
-```{r, Plotted over all chromosomes, echo = FALSE, fig.width = 12, fig.height = 5}
 #pon$norm.pat = pon$pat/median(pon$pat, na.rm=T)*2
 
 plot(rep(pon$bin, nrow(meta)), c(as.matrix(pon.norm)),      #col=rep(gray(1:length(pon.cols)/length(pon.cols), alpha=0.1), each=nrow(pon)),
@@ -210,84 +207,59 @@ plot(rep(pon$bin, nrow(meta)), c(as.matrix(pon.norm)),      #col=rep(gray(1:leng
 abline(v=c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555")
 with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=1, cex=0.5, tick=F))
 with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=0, cex=0.5, tick=F))
+abline(h=c(1.5, 2.5), col="red", lty=2)
 ```
 
 \newpage
-# GC-Bias
-> Some of the variance in bin counts might be due to uneven GC-content per bin.
-> GC-bias based on bedtools nucl statistics for same genome and same bins.
+## Masking bins with extreme GC-content and high variance
+Some of the variance in bin counts might be due to uneven GC-content per bin.
+GC-bias based on bedtools nucl statistics for same genome and same bins.
 
-> Plotting the GC-content vs normalized bin counts: We see hardly any influence of GC content on the data.
-> If GC content has little influence on variance, a large cigar-shaped point cloud appears at 2. 
-> If the GC content has a high influence on the reads, a diagonal or a banana-shaped curve can be seen. 
+Plotting the GC-content vs normalized bin counts: We see hardly any influence of GC content on the data.
+If GC content has little influence on variance, a large cigar-shaped point cloud appears at 2. 
+If the GC content has a high influence on the reads, a diagonal or a banana-shaped curve can be seen. 
 
-> Quinlan A. R. (2014). BEDTools: The Swiss-Army Tool for Genome Feature Analysis. Current protocols in bioinformatics, 47, 11.12.1–11.12.34. doi: 10.1002/0471250953.bi1112s47.
+Quinlan A. R. (2014). BEDTools: The Swiss-Army Tool for Genome Feature Analysis. Current protocols in bioinformatics, 47, 11.12.1–11.12.34. doi: 10.1002/0471250953.bi1112s47.
 
 
-```{r, plot.GC-content, echo = FALSE, fig.width = 5, fig.height = 4}
 
-plot(rep(pon$gc, ncol(pon.norm)), c(as.matrix(pon.norm)), pch=20, xlim=c(0.2, 0.6), ylim=c(0, 4),
-     col = "#11111105",
-     xlab="GC-content", ylab="Normalized Abundance", las = 1, cex = 0.5)
-```
-
-\newpage
-## Regression curve of GC content after filtering
->When compared with the varience of normalized counts, there is an increase in variance towards extreme GC-content and a noticible "high-variance" cloud with average GC-content.
-
-```{r, plot GC-content, echo = FALSE, fig.width = 5, fig.height = 4}
+```{r, plot GC-content, echo = FALSE, fig.width = 7, fig.height = 3}
 pon$norm.var = c(apply(pon.norm, 1, var, na.rm=T))
-pon$gc_blocked = pon$gc < qnorm(0.3, mean(pon$gc, na.rm=T), sd(pon$gc, na.rm=T))
+pon$gc_blocked = pon$gc < qnorm(0.275, mean(pon$gc, na.rm=T), sd(pon$gc, na.rm=T))
 
-plot(pon$gc, pon$norm.var, pch=20, ylim=c(0.0001, 0.3), xlim=c(0.2, 0.6),
+par(mfrow=c(1,2))
+
+plot(pon$gc, pon$norm.var, pch=20, ylim=c(0.0001, 0.2), xlim=c(0.25, 0.6),
      col=ifelse(pon$gc_blocked, "tomato3", "#11111111"),
-     xlab="GC-content", ylab="Variance of normalized abundance", las = 1, cex = 0.5)
+     xlab="GC-content", ylab="Variance", las = 1, cex = 0.5)
+points(rep(0.25, sum(pon$gc < 0.25)), pon$norm.var[pon$gc < 0.25], pch="<", col="tomato3")
+points(pon$gc[!is.na(pon$norm.var) & pon$norm.var > 0.2], rep(0.2, sum(!is.na(pon$norm.var) & pon$norm.var > 0.2)), pch="^", col=ifelse(pon$gc_blocked, "tomato3", "#11111122")[!is.na(pon$norm.var) & pon$norm.var > 0.2])
 gc.var = predict(loess(norm.var ~ gc, pon[pon$gc > 0.35 & pon$gc < 0.6,], span=0.5), 350:600/1000)
 lines(350:600/1000, gc.var, col="blue")
-#library(robust)
-#lines(predict(glmRob(norm.var ~ gc, pon[pon$gc > 0.35 & pon$gc < 0.6,], family="poisson"), newdata=data.frame(gc=350:550/1000)), col="red")
+
+plot(rep(pon$gc, ncol(pon.norm)), c(as.matrix(pon.norm)), pch=20, xlim=c(0.25, 0.6), ylim=c(0, 4),
+     col = ifelse(pon$gc_blocked, "tomato3", "#11111111"),
+     xlab="GC-content", ylab="Ploidy", las = 1, cex = 0.5)
+abline(h=c(1.5, 2.5), col="red", lty=2)
 ```
 
-\newpage
-## Masking extreme GC-content bins
-> Bins with extreme GC-content are marked in red.
-
-> Make sure that these points are not predominantly in the baseline. 
-
-```{r, Masking extreme GC-content bins, echo = FALSE, fig.width = 12, fig.height = 5}
-plot(rep(pon$bin, nrow(meta)), c(as.matrix(pon.norm)),
-     col = ifelse(pon$gc_blocked, "tomato3", "#11111105"),
-     pch = 16, ylim=c(0, 4), yaxs="i",
-     xaxt="n", xlab="Chromosomes", las = 1, ylab="Ploidy", xaxs="i")
-abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
-with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=1, cex=0.5, tick=F))
-with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=0, cex=0.5, tick=F))
-```
+Bins with extreme GC-content are marked in red.
 
 
-```{r, Cleaning the PON of individual outliers, echo = FALSE}
+# Masking high variance bins
+The bins that were excluded from the statistical calculations are shown in color: due to very low GC-content (red), due to high variance (blue), or both (purple).
+
+```{r, Masking high variance bins, echo = FALSE, fig.width = 12, fig.height = 5}
 # One idea would be to clear single bins of single PON subjects where depth is below or above 99% of other subjects for that bin.
 # For small PONs this is to coarse and probably not warrented overall...
 
 pon.norm.clean = data.frame(t(apply(pon.norm, 1, function(x) {x[x < qnorm(0.01, mean(x), sd(x)) | x > qnorm(0.99, mean(x), sd(x))] = NA; x})))
-#plot(rep(pon$bin, length(pon.cols)), c(as.matrix(pon.norm)), ylim=c(0, 6),
-#     col=ifelse(is.na(c(as.matrix(pon.norm.clean))), "#ff000055", "#55555522"), pch=20,
-#     xaxt="n", xlab="Genome", ylab="Reads")
-#abline(v=c(pon$bin[pon$Start == 1], nrow(pon)))
-#axis(1, contigs, colnames(contigs))
-```
-
-\newpage
-# Masking high variance bins
-> The bins that were excluded from the statistical calculations are shown in red: red cross - by GC content, red point - by variance.
-
-```{r, Masking high variance bins, echo = FALSE, fig.width = 12, fig.height = 5}
 pon$norm.clean.var = c(apply(pon.norm.clean, 1, var, na.rm=T))
 pon$var_blocked = pon$sum < 1 | pon$norm.clean.var > qnorm(0.9, mean(pon$norm.clean.var[!pon$gc_blocked], na.rm=T), sd(pon$norm.clean.var[!pon$gc_blocked], na.rm=T))
 
 plot(rep(pon$bin, nrow(meta)), c(as.matrix(pon.norm.clean)),
-     col=ifelse(pon$var_blocked, "#aa331155", "#11111105"), pch=ifelse(pon$gc_blocked, 4, 16),
-     ylim=c(0, 4), yaxs="i",
+     col=ifelse(pon$gc_blocked, ifelse(pon$var_blocked, "#aa33aa55", "#aa331155"), ifelse(pon$var_blocked, "#1133aa55", "#11111105")),
+     ylim=c(0, 4), yaxs="i", pch=16,
      xaxt="n", xlab="Chromosomes", las = 1, ylab="Ploidy", xaxs="i")
 abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
 with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=1, cex=0.5, tick=F))
@@ -295,42 +267,29 @@ with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line
 ```
 
 \newpage
-# Regression curve of GC content after filtering
+# Variance and normalized abundance after filtering
 
-```{r, gc content after correction, echo = FALSE, fig.width = 5, fig.height = 4}
+```{r, gc content after correction, echo = FALSE, fig.width = 7, fig.height = 3}
 pon$norm.clean.var[pon$gc_blocked | pon$var_blocked] = NA
 pon.norm.clean[pon$gc_blocked | pon$var_blocked, ] = rep(NA, ncol(pon.norm))
 
 pon$norm.pat[pon$var_blocked | pon$gc_blocked] = NA
 
-# die graphik mit der regressionskurve, die zeigt, dass die varianz nicht vom gc-gehalt abhängig ist
-# soll nicht mit in den report aufgenommen werden, sondern argumentativ eingesetzt
-plot(pon$gc, pon$norm.clean.var, col="#44991105", pch=19, ylim=c(0.00001, 0.3), xlim=c(0.2, 0.6), xlab="GC-content", ylab="Variance of normalized abundance", las = 1, cex = 0.5)
+par(mfrow=c(1,2))
+plot(pon$gc, pon$norm.clean.var, col="#11111105", pch=20, ylim=c(0.00001, 0.2), xlim=c(0.25, 0.6), xlab="GC-content", ylab="Variance", las = 1, cex = 0.5)
 gc.var.clean = predict(loess(norm.clean.var ~ gc, pon[pon$gc > 0.33 & pon$gc < 0.6,], span=0.5), 330:550/1000)
 lines(330:550/1000, gc.var.clean, col="blue")
-#lines(pon$gc[pon$gc > 0.35 & pon$gc < 0.6], c(robust::glmRob(norm.clean.var ~ gc, pon[pon$gc > 0.35 & pon$gc < 0.6,], family="poisson")$fitted.values), col="red")
-#plot(robust::glmRob(norm.clean.var ~ gc, pon, family="poisson"))
-```
 
-## Normalized Abundance
-
-```{r, Normalized Abundance, echo = FALSE, fig.width = 5, fig.height = 4}
-plot(rep(pon$gc, ncol(pon.norm)), c(as.matrix(pon.norm.clean)), pch=20, xlim=c(0.2, 0.6), ylim=c(0, 4),
+plot(rep(pon$gc, ncol(pon.norm)), c(as.matrix(pon.norm.clean)), pch=20, xlim=c(0.25, 0.6), ylim=c(0, 4),
      col="#11111105", xlab="GC-content",
-     ylab="Normalized Abundance", las = 1, cex = 0.5)
+     ylab="Ploidy", las = 1, cex = 0.5)
+abline(h=c(1.5, 2.5), col="red", lty=2)
 ```
 
-```{r, Normalized Abundance after correction, fig.height=10, echo = FALSE}
-#plot(c(t(pon.norm.clean)), rep(1:length(pon.cols), nrow(pon)), xlab="Reads", ylab="Subjects", yaxt="n",
-#     col=hsv(1:length(pon.cols)/length(pon.cols), alpha=0.1), pch=20, xlim=c(0, 4))
-#axis(4, 1:length(pon.cols), gender_pon$sex)
-```
 
-\newpage
+
 # Filtered PON chromosomal overview
-> The values of gonosomes for men and women are represented: (from left to right) X male, X female, Y male, Y female. 
-
-> An overview of the cleaned up PON. The baseline should be at 2 and the noise around the baseline should have decreased. 
+The final filtered PON should exhibit a tight distribution around 2 for all chromosomes and should not exceed the red boundaries, in order to reliably call monoallelic deletions or insertions.
 
 ```{r, corrected PON overview, echo = FALSE, fig.width = 12, fig.height = 5}
 plot(rep(pon$bin, nrow(meta)), c(as.matrix(pon.norm.clean)),
@@ -339,6 +298,7 @@ plot(rep(pon$bin, nrow(meta)), c(as.matrix(pon.norm.clean)),
 abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
 with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=1, cex=0.5, tick=F))
 with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=0, cex=0.5, tick=F))
+abline(h=c(1.5, 2.5), col="red", lty=2)
 ```
 
 

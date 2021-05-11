@@ -2,28 +2,26 @@
 title: "Report CORIANDR: ChrOmosomal abeRration Identifier AND Reporter in R"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: pdf_document
+params:
+  data: patient
 ---
 
 ```{r, setup, include=FALSE}
 #knitr::opts_knit$set(root.dir = "/media/vera/big_data/coriandR/output//")
-knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
-```
-
-
-```{r echo = FALSE}
-patient.data = read.table("patient.data.tsv", stringsAsFactors = F)
-patient_name = patient.data[1, 2]
-gender = as.character(patient.data[2, 2])
-```
-
-
-```{r echo = FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo=F) 
 
 # librarys
 library(ggplot2)
 library(knitr)
+```
 
 
+```{r echo = FALSE}
+meta = data.frame(t(read.table(paste0(params$data, ".meta.tsv"), stringsAsFactors = F, row.names=1)))
+```
+
+
+```{r echo = FALSE}
 ###################################################################################################
 # VORBEREITEN
 ###################################################################################################
@@ -31,125 +29,130 @@ library(knitr)
 # SCHRITT 1
 # Daten einlesen: Patient, PON, Giemsa-Bands, alle Gene und eine Auswahl der relevanten.
 
-patient = read.table("patient.fc.tsv", header=TRUE, row.names = 1, stringsAsFactors = F) 
-bin_data = read.table("pon.tsv", header=TRUE, row.names = 1, stringsAsFactors = F)
-bin_data$Start = as.integer(bin_data$Start)
-bin_data$End = as.integer(bin_data$End)
-# pon wurde bereits erzuegt, normalisiert und mit den statistischenwerten versehen!
+patient = read.table(meta$count_data, header=TRUE, row.names = 1, stringsAsFactors = F)
 
-cytobands = read.table("../../tables/cytobands_sort.2.tsv", header=TRUE, sep = "\t", row.names = 1, stringsAsFactors = F)
-  # die farben sind bereits enthalten!
-cancer_genes = read.table("../../tables/cancer.driver.genes_unique.and.goi.aml.csv", header=TRUE, sep = "\t",
+pon = read.table(meta$pon, header=TRUE, row.names = 1, stringsAsFactors = F)
+
+if(tolower(meta$gender) %in% c("f", "female")) {
+  ponXf = pon[pon$Chr == "chrX_F", ]
+  ponXf$Chr = "chrX"
+  pon = rbind(pon[!pon$Chr %in% c("chrX_F", "chrX_M", "chrY_M"), ], ponXf)
+  pon$patient = patient[patient$Chr != "chrY", 6]
+} else {
+  ponXm = pon[pon$Chr == "chrX_M", ]
+  ponXm$Chr = "chrX"
+  ponYm = pon[pon$Chr == "chrY_M", ]
+  ponYm$Chr = "chrY"
+  pon = rbind(pon[!pon$Chr %in% c("chrX_F", "chrX_M", "chrY_M"), ], ponXm, ponYm)
+  pon$patient = patient[, 6]
+}
+
+pon$patient.norm = pon$patient / median(pon$patient) *2
+
+cytobands = read.table("tables/cytobands_sort.2.tsv", header=TRUE, sep = "\t", row.names = 1, stringsAsFactors = F)
+cancer_genes = read.table("tables/cancer.driver.genes_unique.and.goi.aml.csv", header=TRUE, sep = "\t",
                           stringsAsFactors = F)
-all_genes = read.table("../../tables/all_genes.tsv", header=TRUE, row.names = 1, stringsAsFactors = F)
-all_genes$start = as.integer(all_genes$start)
-all_genes$end = as.integer(all_genes$end)
+all_genes = read.table("tables/all_genes.tsv", header=TRUE, row.names = 1, stringsAsFactors = F)
+all_genes$start = as.numeric(all_genes$start)
+all_genes$end = as.numeric(all_genes$end)
 
 ```
 
 
 ## Sample ID
 ```{r echo = FALSE}
-cat(patient_name)
+cat(meta$name)
 ```
 
 ```{r echo = FALSE}
-stats = read.table("mapping.stats.tsv", stringsAsFactors = F)
-stats[nrow(stats) +1, ] = list(as.character("unique_mapped_pairs"), round(sum(patient[ , 6])/2))
-#stats[nrow(stats) +1, ] = list(as.character("SAMPLE_ID"), patient_name)
-stats[nrow(stats) +1, ] = list(as.character("gender"), gender)
-
-stats[ , 1] = c("row read pairs", "average read length", "unique mapped pairs", "gender")
-
-library(knitr)
-kable(stats, digits = 0, col.names = NULL, align = "r")
+stats = data.frame(t(read.table(meta$mapping_stats, stringsAsFactors = F, row.names=1)))
+stats$unique_mapping_pairs = round(sum(patient[,6]/2))
 ```
 
-## Distribution of bin depth in sample
+| Sample characterisic | Value |
+|---------------------:|:------|
+| Sample name          | `r meta$name` |
+
+
+## Distribution of sequencing depth per bin in sample
 ```{r echo = FALSE}
-#Histogramm mit density in ggplot2
-
-ggplot(data = patient, mapping = aes(x = patient[ , 6])) +
-         geom_histogram(aes(y = stat(density)), binwidth = 10) +
-         geom_density(data = bin_data, aes(x = mean * median(patient[, 6], na.rm = TRUE)/2), color = "steelblue3") +
-         xlim(0, median(patient[, 6])*2.5) +
-         xlab(" ") +
-         theme_classic()
-```
-
-> This graph shows the distribution of the bins according to the depth of the sequencing. The blue curve represents the distribution of the bins in the PON. Ideally, the histogram and the blue curve match completely. If not, this can indicate larger deletions (the first peak decreases) or larger amplifications (the third peak increases). 
-
-```{r echo = FALSE}
-# Histogramm mit R Base Graphik
-#hist(patient[, 6], breaks=seq(0, max(patient[, 6]) + 10, by = 10), xlim = c(0, median(patient[, 6])*2.5))
-#abline(v = c(0.5, 1, 1.5, 2) *median(patient[, 6]), col = 'red', lty = 2)
-#axis(3, c(0.5, 1, 1.5, 2) *median(patient[, 6]), c(0.5, 1, 1.5, 2), line = 1, tick = F, col = 'red')
-#dens <- density(bin_data[!is.na(bin_data$mean), "mean"]*median(patient[, 6]))
-
-#lines(dens)
-
-#patient$norm = patient[, 6] /median(patient[, 6])*2
-#hist(patient$norm, breaks=seq(0, max(patient$norm) + 1, by = 0.02), xlim = c(0, 4))
-#abline(v = c(1, 2, 3, 4), col = 'red', lty = 2)
+hist(pon$patient, breaks=seq(0, max(pon$patient)+20, by=20),
+     xlim=c(0, median(pon$patient)*2),
+     freq=F, xlab="Depth per bin", border=F, col="blue", main="")
+pon.hist = hist(pon$sum/median(pon$sum)*median(pon$patient), breaks=seq(0, max(pon$sum), by=50), plot=F)
+lines(pon.hist$mids, pon.hist$density, col="red")
+abline(v = c(0.5, 1, 1.5, 2) *median(pon$patient), col='gray', lty=2)
+legend("right", legend="scaled PON", col="red", lty=1, cex=0.8)
+mtext(c("x1", "x2", "x3", "x4"), at=c(0.5, 1, 1.5, 2) *median(pon$patient), side=3)
 
 ```
 
-```{r echo = FALSE}
+This graph shows the distribution of the bins according to the depth of the sequencing. The red curve represents the distribution of the PON scaled to the same depth. Ideally, the histogram and the red curve match completely. If not, this can indicate larger deletions (the first peak decreases) or larger amplifications (the third peak increases). 
 
+
+```{r echo = FALSE}
+pon$rate = with(pon, ifelse(sum > 0, patient/(sum+patient), 0))
+hist(pon$rate[!(pon$gc_blocked | pon$var_blocked)])
+pon$binom = pon$binom = apply(pon[, c("patient", "sum")], 1, function(x) ifelse(x[2] > 0, binom.test(x[1], x[2]+x[1], median(pon$rate[!(pon$gc_blocked | pon$var_blocked | pon$rate == 0)]))$p.value, 1))
+pon$binom.adjust = p.adjust(pon$binom, method="hochberg")
+```
+
+```{r}
 # SCHRITT 2
 # PON an das Geschlecht des Patienten anpassen
-pon.gender.adjust = function(pon, gender) {
-  if (gender == "M") {
-    chrn = "chrX"
-    pon.copy = pon[pon$Chr == "chrX_M", ]
-    pon.copy$Chr = chrn
-    pon = rbind(pon, pon.copy)
-    
-    chrn = "chrY"
-    pon.copy = pon[pon$Chr == "chrY_M", ]
-    pon.copy$Chr = chrn
-    pon = rbind(pon, pon.copy)
-    
-    pon = pon[!(pon$Chr == "chrX_F" | pon$Chr == "chrY_F" | pon$Chr == "chrX_M" | pon$Chr == "chrY_M"), ]
-  }
-  
-  else {
-    chrn = "chrX"
-    pon.copy = pon[pon$Chr == "chrX_F", ]
-    pon.copy$Chr = chrn
-    pon = rbind(pon, pon.copy)
-    
-    chrn = "chrY"
-    pon.copy = pon[pon$Chr == "chrY_F", ]
-    pon.copy$Chr = chrn
-    pon = rbind(pon, pon.copy)
-    
-    pon = pon[!(pon$Chr == "chrX_F" | pon$Chr == "chrY_F" | pon$Chr == "chrX_M" | pon$Chr == "chrY_M"), ]
-  }
-}
+# pon.gender.adjust = function(pon, gender) {
+#   if (gender == "M") {
+#     chrn = "chrX"
+#     pon.copy = pon[pon$Chr == "chrX_M", ]
+#     pon.copy$Chr = chrn
+#     pon = rbind(pon, pon.copy)
+#     
+#     chrn = "chrY"
+#     pon.copy = pon[pon$Chr == "chrY_M", ]
+#     pon.copy$Chr = chrn
+#     pon = rbind(pon, pon.copy)
+#     
+#     pon = pon[!(pon$Chr == "chrX_F" | pon$Chr == "chrY_F" | pon$Chr == "chrX_M" | pon$Chr == "chrY_M"), ]
+#   }
+#   
+#   else {
+#     chrn = "chrX"
+#     pon.copy = pon[pon$Chr == "chrX_F", ]
+#     pon.copy$Chr = chrn
+#     pon = rbind(pon, pon.copy)
+#     
+#     chrn = "chrY"
+#     pon.copy = pon[pon$Chr == "chrY_F", ]
+#     pon.copy$Chr = chrn
+#     pon = rbind(pon, pon.copy)
+#     
+#     pon = pon[!(pon$Chr == "chrX_F" | pon$Chr == "chrY_F" | pon$Chr == "chrX_M" | pon$Chr == "chrY_M"), ]
+#   }
+# }
 
 
 # SCHRITT 3
 # Die Patientendaten normalisieren
-patient_normalization = function(patient, column_number) {
-  # patient = tabelle der patienten
-  # column_number = nummer der spalte mit deb patienten-bins
-  # (bei einem patienten -> 6) 
-  patient_norm <- patient[ , 1:5]
-  #patient_norm$pat_bins <- patient[ , column_number] / sum(patient[ , column_number]) * (patient[1, 3] - patient[1, 2] + 1)
-  patient_norm$pat_bins <- patient[ , column_number] / median(patient[ , column_number]) *2
-  # eine neue tabelle mit den allgemeinen daten und den normalisierten patienten-bins
-  # normalisierung basiert auf der automatischen erkennung der bin-laenge (differenz end und start der 1. bin)
-  # ist also dynamisch
-  return(patient_norm)
-}
+# patient_normalization = function(patient, column_number) {
+#   # patient = tabelle der patienten
+#   # column_number = nummer der spalte mit deb patienten-bins
+#   # (bei einem patienten -> 6) 
+#   patient_norm <- patient[ , 1:5]
+#   #patient_norm$pat_bins <- patient[ , column_number] / sum(patient[ , column_number]) * (patient[1, 3] - patient[1, 2] + 1)
+#   patient_norm$pat_bins <- patient[ , column_number] / median(patient[ , column_number]) *2
+#   # eine neue tabelle mit den allgemeinen daten und den normalisierten patienten-bins
+#   # normalisierung basiert auf der automatischen erkennung der bin-laenge (differenz end und start der 1. bin)
+#   # ist also dynamisch
+#   return(patient_norm)
+# }
+
 
 # SCHRITT 4
 # Den Patienten als eine neue Spalte zu der PON-Tabelle hinzufügen
-unite.data = function(pon, patient) {
-  pon$patient = patient$pat_bins
-  return(pon)
-}
+# unite.data = function(pon, patient) {
+#   pon$patient = patient$pat_bins
+#   return(pon)
+# }
 
 ###################################################################################################
 # RECHNEN
@@ -157,10 +160,10 @@ unite.data = function(pon, patient) {
 
 # SCHRITT 5
 #Del/amp Bins detektieren
-aberration.bins.identifier = function(bin_data, sd_factor) {
-  bin_data$aberration = with(bin_data, factor(ifelse(patient < mean - sd_factor * sd, 'del', ifelse(patient > mean + sd_factor * sd, 'add', 'normal')), levels = c('normal', 'add', 'del')))
-  return(bin_data)
-}
+# aberration.bins.identifier = function(bin_data, sd_factor) {
+#   bin_data$aberration = with(bin_data, factor(ifelse(patient < mean - sd_factor * sd, 'del', ifelse(patient > mean + sd_factor * sd, 'add', 'normal')), levels = c('normal', 'add', 'del')))
+#   return(bin_data)
+# }
 
 
 # SCHRITT 6

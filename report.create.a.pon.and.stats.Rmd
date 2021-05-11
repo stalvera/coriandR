@@ -349,7 +349,8 @@ abline(h=c(1.5, 2.5), col="red", lty=2)
 #pon = panel_of_normals_normalization(pon)
 
 #pon = means_panel_of_normals(pon)
-
-write.table(pon, file = paste0(params$pon_name, ".tsv"), sep = "\t", row.names = TRUE, col.names = NA)
+pon$norm = rowMeans(pon.norm)
+pon$norm_sd = apply(pon.norm, 1, sd, na.rm=T)
+write.table(pon, file = paste0(params$pon_name, ".pon.tsv"), sep = "\t", row.names = TRUE, col.names = NA)
 ```
 

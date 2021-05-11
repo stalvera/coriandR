@@ -1,40 +1,50 @@
 ---
-title: "Report to create a new custom Panel of normals (PON) with coriandR"
+title: "coriandR: Panel of Normals"
+subtitle: "Report"
 date: "`r format(Sys.time(), '%d-%m-%Y')`"
 output: pdf_document
+params:
+  pon_name: pon
 ---
 
-> In this markdown script a new PON is created from the fastq files and a gender table. To create the gender table, see the examples in the documentation.
+# Generating PON: "`r params$pon_name`"
 
-> The data adjustment with applied statistical methods is presented in this report step by step.
+This report documents the creation of the Panel of Normals (PON) from sequencing runs of healthy individuals, which is later used in Copy Number Variantion analysis of single patient data on the same sequencing platform with `coriandR`.
+
+This PON has to be generated only once, mapping at least three healthy sequencing libraries against the human genome using `bowtie2` and counted with `featureCounts` as specified in the accompanying documentation.
 
 ```{r, include=FALSE}
-#pfad zum ordner, falls skript manuell ausgefuehrt wird
-#knitr::opts_knit$set(root.dir = "/media/vera/big_data/mr_genoms/pon.marburg.compliete")
 library(knitr)
 knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
 knitr::opts_chunk$set(dev = "png", dev.args = list(type = "cairo-png"))
 ```
 
-```{r, data definition, echo = FALSE}
+## Raw Library Counts
+
+Per default raw read counts per library are counted with `featureCounts` for the entire PON at once and stored in the `r params$pon_name`.`fc.tsv` file by the user.
+
+Meta data about the samples (`sample` and `gender`) are specified in the `r params$pon_name`.`meta.tsv` file separated by comma (`,`) by the user.
+
+
+```{r, data_definition, echo = FALSE}
 # data definition
-pon.data = read.table("pon.data.tsv", stringsAsFactors = F)
-pon.name = pon.data[1,1]
-fastq.dir = pon.data[1,2]
-gender.dir = pon.data[1,3]
+meta = read.table(paste0(params$pon_name, ".meta.csv"), stringsAsFactors = F, header = TRUE, sep = ",")
+row.names(meta) = meta$sample
+pon = read.table(paste0(params$pon_name, ".fc.tsv"), header = TRUE, stringsAsFactors = T)
+
+if(nrow(meta) != ncol(pon)-6) {print("PON meta file and featureCounts of PON have different number of samples"); knitr::knit_exit()}
+meta$pon.col = as.vector(as.numeric(sapply(meta$sample, function(x) grep(gsub("-", ".", x), names(pon)), simplify=T)))
+if(any(is.na(meta$pon.col))) {print("PON meta file and featureCounts of PON have different names of samples"); knitr::knit_exit()}
+names(pon)[meta$pon.col] = meta$sample
 
 # gc-gehalt, erstellt mit bedtools
 gc = read.table("GRCh38.p13.genome.1M.nucl", stringsAsFactors = T)
-
-pon = read.table("pon.fc.tsv", header = TRUE, row.names = 1, stringsAsFactors = T)
-gender_pon = read.table(gender.dir, header = TRUE, sep = ",", row.names = 1)
-pon.cols = grep("bam", names(pon))  # which columns have the actual data
-
+pon$gc = gc[gc$V1 != 'chrM', 5]
 ```
 
 ```{r, PON gender segregation, echo = FALSE}
 # PoN gender segregation
-gendering_pon <- function(pon, gender_pon) {
+gendering_pon <- function(pon, meta) {
   # gender_pon ist eine tabelle mit den spaltennamen im PON und mit den dazugehoerigen geschlechtern
   
   # zuerst das X-Chromosom in chrX_F und chrX_M aufteilen
@@ -44,12 +54,12 @@ gendering_pon <- function(pon, gender_pon) {
   # allen zeilen wird der suffix "_M" zugewiesen
   pon.copy$Chr = paste0(pon.copy$Chr, "_M")
   # nur die maenner sollten die werte fuer chrX_M behalten
-  pon.copy[, 6:ncol(pon.copy)][, gender_pon$sex == "F"] = NA
+  pon.copy[, meta$pon.col[meta$gender == "F"]] = NA
   pon.new = rbind(pon, pon.copy)
   
   pon.copy = pon[pon$Chr == chrn, ]
   pon.copy$Chr = paste0(pon.copy$Chr, "_F")
-  pon.copy[, 6:ncol(pon.copy)][, gender_pon$sex == "M"] = NA
+  pon.copy[, meta$pon.col[meta$gender == "M"]] = NA
   # pon.new ist jetzt um 2 "X-chr" groesser
   pon.new = rbind(pon.new, pon.copy)
   
@@ -57,87 +67,90 @@ gendering_pon <- function(pon, gender_pon) {
   chrn = "chrY"
   pon.copy = pon[pon$Chr == chrn, ]
   pon.copy$Chr = paste0(pon.copy$Chr, "_M")
-  pon.copy[, 6:ncol(pon.copy)][, gender_pon$sex == "F"] = NA
+  pon.copy[, meta$pon.col[meta$gender == "F"]] = NA
   pon.new = rbind(pon.new, pon.copy)
   
   pon.copy = pon[pon$Chr == chrn, ]
   pon.copy$Chr = paste0(pon.copy$Chr, "_F")
-  pon.copy[, 6:ncol(pon.copy)][, gender_pon$sex == "M"] = NA
+  pon.copy[, meta$pon.col[meta$gender == "M"]] = NA
   pon.new = rbind(pon.new, pon.copy)
   
   # zeilen mit den eigentlichen X- und Y-chromosomen loeschen
   pon.new = pon.new[!(pon.new$Chr == "chrX" | pon.new$Chr == "chrY"), ]
   pon = pon.new
 }
-
-pon = gendering_pon(pon, gender_pon)
+#pon = gendering_pon(pon, meta)
+ponXf = pon[pon$Chr == "chrX", ]
+ponXf$Chr = "chrX_F"
+ponXf[, meta$sample[meta$gender != "F"]] = NA
+ponXm = pon[pon$Chr == "chrX", ]
+ponXm$Chr = "chrX_M"
+ponXm[, meta$sample[meta$gender != "M"]] = NA
+ponYm = pon[pon$Chr == "chrY", ]
+ponYm$Chr = "chrY_M"
+ponYm[, meta$sample[meta$gender != "M"]] = NA
+pon = rbind(pon[!pon$Chr %in% c("chrX", "chrY"), ], ponXf, ponXm, ponYm)
 ```
 
-## PON name
-```{r, PON name, echo = FALSE}
-print(pon.name)
-```
 
-# Sequencing depth of individual PON subjects
-> On a log-Scale we see that the PON data is similarly distributed at different sequencing depths.
 
-> In this graphic, individual PON subjects are represented with their genders. It is a logarithmic representation of the sequencing depth.
+### Sequencing depth of individual PON subjects
+The following plot shows the sequencing depth of different PON libraries on a logarithmic scale per megabase.
 
-> The subjects should have roughly the same sequencing depth. The male subjects have two point clouds (the first for the single X chromosome and the second for the double somatic chromosomes).
+Optimally all samples should be well above 100 and within the red dotted lines, representing $1/4$ and $4$ times the **median** sequencing depth.
 
-```{r, Reading in the PON and Patient counts, warning=F, fig.height=12, echo = FALSE}
+Gender annotation of the samples should match distributions with one single cluster in females (F) or two distinctive clusters for autosomes and single copy X and Y chromosomes in males (M).
+
+```{r, Reading in the PON and Patient counts, warning=F, fig.height=12, fig.width=7, echo = FALSE}
 # Reading in the PON and Patient counts
-
 pon$bin = 1:nrow(pon)  # plain number all bins
-contigs = t(tapply(pon$bin, pon$Chr, mean)) # middle coordinates of chromosomes for axis drawing
-
-plot(c(t(pon[ ,pon.cols])), rep(1:length(pon.cols), nrow(pon)),
-     log = "x", xlab="Read depth in log10", ylab = "Panel of Normals Subjects", yaxt = "n",
-     pch = ".")
-# col = hsv(1:length(pon.cols)/ length(pon.cols), alpha = 0.1),
-
-axis(4, 1:length(pon.cols), las = 1, gender_pon$sex)
+contigs = data.frame(pos=tapply(pon$bin, pon$Chr, mean)) # middle coordinates of chromosomes for axis drawing
+contigs$chr = gsub("chr", "", rownames(contigs))
+contigs = contigs[order(as.numeric(contigs$chr)),]
+par(mar=c(3, 15, 1, 3), cex=0.7)
+plot(c(t(pon[ ,meta$pon.col])), rep(1:nrow(meta), nrow(pon)),
+     log = "x", xlab="Read depth", ylab="", yaxt = "n",
+     pch = 20, col="#11111105")
+abline(v=c(0.25, 4)*median(c(t(pon[ ,meta$pon.col])), na.rm=T), col='red', lty=2)
+axis(4, 1:nrow(meta), las = 1, meta$gender)
+axis(2, 1:nrow(meta), las = 1, meta$sample)
 ```
 
 
 ```{r, echo = FALSE}
 #Just as an overview, on a non-log scale compared with the patient (blue line). There seem to be lots of PON bins with zero reads at the bottom.
-
 #pat = read.table("patient.fc.tsv", header=TRUE, row.names=1, stringsAsFactors=T)
 #pon$pat = pat[, 6]
-
 #plot(rep(pon$bin, length(pon.cols)), c(t(pon[,pon.cols])),
 #     ylim=c(0, qnorm(0.999, mean(as.matrix(pon[,pon.cols])), sd(as.matrix(pon[,pon.cols])))),
 #     col=hsv(1:length(pon.cols)/length(pon.cols), alpha=0.1), pch=20, frame=F,
 #     xaxt="n", xlab="Genome", ylab="#Reads")
-
 #bereits hier werden die bins herausgefiltert, die ausserhalb der 99% um den mean herum liegen
 #viele PON-bins mit den Nullen
-
 #abline(v=c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555")
 #axis(1, contigs, colnames(contigs))
 #lines(pon$bin, pon$pat, col="blue")
 ```
 
 
-# Cumulative PON
+### Cumulative PON
+For later statistics the read counts of the PON are summed up over each bin.
 
-> Bins with counts outside of 99% of the normal distribution are marked in red. These should probably be masked in the end.
+Ideally, autosomes show up as a straight line of dots with minimal noise well above a read depth of at least 1000 reads per megabase.
 
-> The values of gonosomes for men and women are represented: (from left to right) X male, X female, Y male, Y female. 
+Bins with counts outside of 99% of the normal distribution are marked in red. These should probably be masked in the end.
+
+The values of gonosomes for men and women are represented: (from left to right) X in male, X in female, Y chromosome in males (M). 
 
 ```{r, Cumulative PON, echo = FALSE, fig.width = 12, fig.height = 5}
 # One idea is to sum all PON reads of a bin up and compare/test the raw numbers with the Patient. This can be done by Binomial testing, or Testing the Odds-Ratio.
-pon$sum = rowSums(pon[, pon.cols], na.rm=T)
-
-
+pon$sum = rowSums(pon[, meta$pon.col], na.rm=T)
 plot(pon$bin, pon$sum, ylim = c(0, qnorm(0.999, mean(pon$sum), sd(pon$sum))),
-     col = ifelse(pon$sum < qnorm(0.01, mean = mean(pon$sum), sd=sd(pon$sum)) | pon$sum > qnorm(0.99, mean = mean(pon$sum), sd = sd(pon$sum), lower.tail=T), "tomato3", "slategray"),
-     pch = 20, xaxt="n", xlab="Chromosomes", las = 1, ylab="Read depth", frame=F)
+     col = ifelse(pon$sum < qnorm(0.01, mean = mean(pon$sum), sd=sd(pon$sum)) | pon$sum > qnorm(0.99, mean = mean(pon$sum), sd = sd(pon$sum), lower.tail=T), "tomato3", "#11111111"),
+     pch = 16, xaxt="n", xlab="", las = 1, ylab="Read depth", xaxs="i")
 abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
-axis(1, contigs, colnames(contigs), cex = 0.5)
-
-
+with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=1, cex=0.5, tick=F))
+with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=0, cex=0.5, tick=F))
 #plot(pon$bin, pon$X62720_S6_L001.bam,
 #     col = ifelse(pon$sum < qnorm(0.01, mean = mean(pon$sum), sd=sd(pon$sum)) | pon$sum > qnorm(0.99, #mean = mean(pon$sum), sd = sd(pon$sum), lower.tail=T), "#ff000055", "#55555522"),
 #     pch=20, xaxt="n", xlab="Genome", ylab="Reads", frame=F)
@@ -146,85 +159,48 @@ axis(1, contigs, colnames(contigs), cex = 0.5)
 ```
 
 \newpage
-# Normalizing PON and patient by library median
+
+
+## Normalizing PON by library size and per megabase
+In order to compare the quality of multiple PONs, read depth is normalized by overall library size and then by the median for each megabase.
 
 ```{r, Normalizing PON and patient by library median, fig.height=12, echo = FALSE}
 #Normalizing to a ploidity of 2, the PON looks much more straight forward aside from the samples with a second mode at 1 (gonosomes).
-
-pon.norm = pon[, pon.cols]
-pon.norm = data.frame(t(t(pon.norm)/ apply(pon.norm, 2, median, na.rm=T)*2))
+pon.norm = pon[, meta$pon.col]
+#pon.norm = data.frame(t(t(pon.norm)/ apply(pon.norm, 2, median, na.rm=T)*2))
+pon.norm = data.frame(t(t(pon.norm)/(apply(pon.norm, 2, sum, na.rm=T))))
+pon.norm = data.frame(pon.norm/apply(pon.norm, 1, median, na.rm=T)*2)
 #plot(c(t(pon.norm)), rep(1:length(pon.cols), nrow(pon)), xlab="Reads", ylab="Subjects", yaxt="n",
 #     col = hsv(1:length(pon.cols)/ length(pon.cols), alpha=0.1), pch=20, xlim=c(0, 6))
 #axis(4, 1:length(pon.cols), gender_pon$sex)
 ```
 
-> Plotted over all chromosomes, normalized to the ploidy of 2, the visual interpretation becomes very straight forward (some noise might be problematic). We have some unsightly spikes in PON, of bins with either much more or much less counts than average.
+The genome plot should result in a tight distribution arount the ploidy of 2.
 
-> As the filtering progresses, the noise around the baseline will decrease. 
-
-> The male subjects have only one copy of X and Y chromosome. 
+Gonosomes are shifted to match a ploidy of 2 in males to facilitate comparability.
 
 ```{r, Plotted over all chromosomes, echo = FALSE, fig.width = 12, fig.height = 5}
 #pon$norm.pat = pon$pat/median(pon$pat, na.rm=T)*2
-
-plot(rep(pon$bin, length(pon.cols)), c(as.matrix(pon.norm)), ylim=c(0, 6),      #col=rep(gray(1:length(pon.cols)/length(pon.cols), alpha=0.1), each=nrow(pon)),
-     col ="slategray", pch = 16, xaxt="n", xlab="Chromosomes", las = 1, ylab="Read depth", frame=F)
+plot(rep(pon$bin, nrow(meta)), c(as.matrix(pon.norm)),      #col=rep(gray(1:length(pon.cols)/length(pon.cols), alpha=0.1), each=nrow(pon)),
+     col ="#11111105", pch = 16, ylim=c(0, 4), yaxs="i",
+     xaxt="n", xlab="Chromosomes", las = 1, ylab="Ploidy", xaxs="i")
 abline(v=c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555")
-axis(1, contigs, colnames(contigs), cex = 0.5)
-#lines(pon$bin, pon$norm.pat, col="blue")
+with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=1, cex=0.5, tick=F))
+with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=0, cex=0.5, tick=F))
 ```
 
 \newpage
 # GC-Bias
 > Some of the variance in bin counts might be due to uneven GC-content per bin.
 > GC-bias based on bedtools nucl statistics for same genome and same bins.
-
 > Plotting the GC-content vs normalized bin counts: We see hardly any influence of GC content on the data.
 > If GC content has little influence on variance, a large cigar-shaped point cloud appears at 2. 
 > If the GC content has a high influence on the reads, a diagonal or a banana-shaped curve can be seen. 
-
 > Quinlan A. R. (2014). BEDTools: The Swiss-Army Tool for Genome Feature Analysis. Current protocols in bioinformatics, 47, 11.12.1–11.12.34. doi: 10.1002/0471250953.bi1112s47.
 
-```{r, compute.GC-content, echo = FALSE}
-# gc gehalt muss auch gegendert werden
-
-gendering_gc <- function(gc) {
-  
-  # zuerst das X-Chromosom in chrX_F und chrX_M aufteilen
-  chrn = "chrX"
-  # in eine separate tabelle werden alle zeilen von x-chr reingepackt
-  gc.copy = gc[gc$V1 == chrn, ]
-  # allen zeilen wird der suffix "_M" zugewiesen
-  gc.copy$V1 = paste0(gc.copy$V1, "_M")
-  gc.new = rbind(gc, gc.copy)
-  
-  gc.copy = gc[gc$V1 == chrn, ]
-  gc.copy$V1 = paste0(gc.copy$V1, "_F")
-  gc.new = rbind(gc.new, gc.copy)
-  
-  # dann Y-Chromosom
-  chrn = "chrY"
-  gc.copy = gc[gc$V1 == chrn, ]
-  gc.copy$V1 = paste0(gc.copy$V1, "_M")
-  gc.new = rbind(gc.new, gc.copy)
-  
-  gc.copy = gc[gc$V1 == chrn, ]
-  gc.copy$V1 = paste0(gc.copy$V1, "_F")
-  gc.new = rbind(gc.new, gc.copy)
-  
-  # zeilen mit den eigentlichen X- und Y-chromosomen loeschen
-  gc.new = gc.new[!(gc.new$V1 == "chrX" | gc.new$V1 == "chrY"), ]
-  gc = gc.new
-}
-
-gc = gendering_gc(gc)
-pon$gc = gc[gc$V1 != 'chrM', 5]
-```
-
 ```{r, plot.GC-content, echo = FALSE, fig.width = 5, fig.height = 4}
-
-plot(rep(pon$gc, ncol(pon.norm)), c(as.matrix(pon.norm)), pch=20, xlim=c(0.2, 0.7), ylim=c(0, 4),
-     col = "steelblue4",
+plot(rep(pon$gc, ncol(pon.norm)), c(as.matrix(pon.norm)), pch=20, xlim=c(0.2, 0.6), ylim=c(0, 4),
+     col = "#11111105",
      xlab="GC-content", ylab="Normalized Abundance", las = 1, cex = 0.5)
 ```
 
@@ -235,12 +211,11 @@ plot(rep(pon$gc, ncol(pon.norm)), c(as.matrix(pon.norm)), pch=20, xlim=c(0.2, 0.
 ```{r, plot GC-content, echo = FALSE, fig.width = 5, fig.height = 4}
 pon$norm.var = c(apply(pon.norm, 1, var, na.rm=T))
 pon$gc_blocked = pon$gc < qnorm(0.3, mean(pon$gc, na.rm=T), sd(pon$gc, na.rm=T))
-
 plot(pon$gc, pon$norm.var, pch=20, ylim=c(0.0001, 0.3), xlim=c(0.2, 0.6),
-     col=ifelse(pon$gc_blocked, "tomato3", "slategray"),
+     col=ifelse(pon$gc_blocked, "tomato3", "#11111111"),
      xlab="GC-content", ylab="Variance of normalized abundance", las = 1, cex = 0.5)
-gc.var = predict(loess(norm.var ~ gc, pon[pon$gc > 0.35 & pon$gc < 0.6,]), 350:600/1000)
-lines(350:600/1000, gc.var)
+gc.var = predict(loess(norm.var ~ gc, pon[pon$gc > 0.35 & pon$gc < 0.6,], span=0.5), 350:600/1000)
+lines(350:600/1000, gc.var, col="blue")
 #library(robust)
 #lines(predict(glmRob(norm.var ~ gc, pon[pon$gc > 0.35 & pon$gc < 0.6,], family="poisson"), newdata=data.frame(gc=350:550/1000)), col="red")
 ```
@@ -248,22 +223,22 @@ lines(350:600/1000, gc.var)
 \newpage
 ## Masking extreme GC-content bins
 > Bins with extreme GC-content are marked in red.
-
 > Make sure that these points are not predominantly in the baseline. 
 
 ```{r, Masking extreme GC-content bins, echo = FALSE, fig.width = 12, fig.height = 5}
-plot(rep(pon$bin, length(pon.cols)), c(as.matrix(pon.norm)), ylim=c(0, 6),
-     col = ifelse(pon$gc_blocked, "tomato3", "slategray"), pch=20,
-     xaxt="n", xlab="Chromosomes", las = 1, ylab="Read depth")
-abline(v = c(pon$bin[pon$Start == 1], nrow(pon)))
-axis(1, contigs, colnames(contigs), cex = 0.5)
+plot(rep(pon$bin, nrow(meta)), c(as.matrix(pon.norm)),
+     col = ifelse(pon$gc_blocked, "tomato3", "#11111105"),
+     pch = 16, ylim=c(0, 4), yaxs="i",
+     xaxt="n", xlab="Chromosomes", las = 1, ylab="Ploidy", xaxs="i")
+abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
+with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=1, cex=0.5, tick=F))
+with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=0, cex=0.5, tick=F))
 ```
 
 
 ```{r, Cleaning the PON of individual outliers, echo = FALSE}
 # One idea would be to clear single bins of single PON subjects where depth is below or above 99% of other subjects for that bin.
 # For small PONs this is to coarse and probably not warrented overall...
-
 pon.norm.clean = data.frame(t(apply(pon.norm, 1, function(x) {x[x < qnorm(0.01, mean(x), sd(x)) | x > qnorm(0.99, mean(x), sd(x))] = NA; x})))
 #plot(rep(pon$bin, length(pon.cols)), c(as.matrix(pon.norm)), ylim=c(0, 6),
 #     col=ifelse(is.na(c(as.matrix(pon.norm.clean))), "#ff000055", "#55555522"), pch=20,
@@ -278,13 +253,14 @@ pon.norm.clean = data.frame(t(apply(pon.norm, 1, function(x) {x[x < qnorm(0.01, 
 
 ```{r, Masking high variance bins, echo = FALSE, fig.width = 12, fig.height = 5}
 pon$norm.clean.var = c(apply(pon.norm.clean, 1, var, na.rm=T))
-pon$var_blocked = pon$sum < 1 | pon$norm.clean.var > qnorm(0.5, mean(pon$norm.clean.var[!pon$gc_blocked], na.rm=T), sd(pon$norm.clean.var[!pon$gc_blocked], na.rm=T))
-
-plot(rep(pon$bin, length(pon.cols)), c(as.matrix(pon.norm.clean)), ylim=c(0, 6),
-     col=ifelse(pon$var_blocked, "tomato3", "slategray"), pch=ifelse(pon$gc_blocked, 4, 20),
-     xaxt="n", xlab="Chromosomes", las = 1, ylab="Read depth")
-abline(v=c(pon$bin[pon$Start == 1], nrow(pon)))
-axis(1, contigs, colnames(contigs), cex = 0.5)
+pon$var_blocked = pon$sum < 1 | pon$norm.clean.var > qnorm(0.9, mean(pon$norm.clean.var[!pon$gc_blocked], na.rm=T), sd(pon$norm.clean.var[!pon$gc_blocked], na.rm=T))
+plot(rep(pon$bin, nrow(meta)), c(as.matrix(pon.norm.clean)),
+     col=ifelse(pon$var_blocked, "#aa331155", "#11111105"), pch=ifelse(pon$gc_blocked, 4, 16),
+     ylim=c(0, 4), yaxs="i",
+     xaxt="n", xlab="Chromosomes", las = 1, ylab="Ploidy", xaxs="i")
+abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
+with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=1, cex=0.5, tick=F))
+with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=0, cex=0.5, tick=F))
 ```
 
 \newpage
@@ -293,14 +269,12 @@ axis(1, contigs, colnames(contigs), cex = 0.5)
 ```{r, gc content after correction, echo = FALSE, fig.width = 5, fig.height = 4}
 pon$norm.clean.var[pon$gc_blocked | pon$var_blocked] = NA
 pon.norm.clean[pon$gc_blocked | pon$var_blocked, ] = rep(NA, ncol(pon.norm))
-
 pon$norm.pat[pon$var_blocked | pon$gc_blocked] = NA
-
 # die graphik mit der regressionskurve, die zeigt, dass die varianz nicht vom gc-gehalt abhängig ist
 # soll nicht mit in den report aufgenommen werden, sondern argumentativ eingesetzt
-plot(pon$gc, pon$norm.clean.var, col="yellowgreen", pch=19, ylim=c(0.00001, 0.3), xlim=c(0.3, 0.6), xlab="GC-content", ylab="Variance of normalized abundance", las = 1, cex = 0.5)
-gc.var.clean = predict(loess(norm.clean.var ~ gc, pon[pon$gc > 0.35 & pon$gc < 0.6,]), 350:550/1000)
-lines(350:550/1000, gc.var.clean)
+plot(pon$gc, pon$norm.clean.var, col="#44991105", pch=19, ylim=c(0.00001, 0.3), xlim=c(0.2, 0.6), xlab="GC-content", ylab="Variance of normalized abundance", las = 1, cex = 0.5)
+gc.var.clean = predict(loess(norm.clean.var ~ gc, pon[pon$gc > 0.33 & pon$gc < 0.6,], span=0.5), 330:550/1000)
+lines(330:550/1000, gc.var.clean, col="blue")
 #lines(pon$gc[pon$gc > 0.35 & pon$gc < 0.6], c(robust::glmRob(norm.clean.var ~ gc, pon[pon$gc > 0.35 & pon$gc < 0.6,], family="poisson")$fitted.values), col="red")
 #plot(robust::glmRob(norm.clean.var ~ gc, pon, family="poisson"))
 ```
@@ -308,8 +282,8 @@ lines(350:550/1000, gc.var.clean)
 ## Normalized Abundance
 
 ```{r, Normalized Abundance, echo = FALSE, fig.width = 5, fig.height = 4}
-plot(rep(pon$gc, ncol(pon.norm)), c(as.matrix(pon.norm.clean)), pch=20, xlim=c(0.2, 0.7), ylim=c(0, 4),
-     col="steelblue4", xlab="GC-content",
+plot(rep(pon$gc, ncol(pon.norm)), c(as.matrix(pon.norm.clean)), pch=20, xlim=c(0.2, 0.6), ylim=c(0, 4),
+     col="#11111105", xlab="GC-content",
      ylab="Normalized Abundance", las = 1, cex = 0.5)
 ```
 
@@ -321,17 +295,16 @@ plot(rep(pon$gc, ncol(pon.norm)), c(as.matrix(pon.norm.clean)), pch=20, xlim=c(0
 
 \newpage
 # Filtered PON chromosomal overview
-> The values of gonosomes for men and women are represented: (from left to right) X male, X female, Y male, Y female. 
-
+> The values of gonosomes for men and women are represented: (from left to right) X in male, X in female, Y chromosome in males (M). 
 > An overview of the cleaned up PON. The baseline should be at 2 and the noise around the baseline should have decreased. 
 
 ```{r, corrected PON overview, echo = FALSE, fig.width = 12, fig.height = 5}
-plot(rep(pon$bin, length(pon.cols)), c(as.matrix(pon.norm.clean)), ylim=c(0, 4),
-     col= "slategray", pch=20, cex=0.5,
-     xaxt="n", xlab="Chromosomes", las = 1, ylab="Read depth")
-abline(v=c(pon$bin[pon$Start == 1], nrow(pon)))
-axis(1, contigs, colnames(contigs), cex = 0.5)
-lines(pon$bin, pon$norm.pat, lwd=0.5)
+plot(rep(pon$bin, nrow(meta)), c(as.matrix(pon.norm.clean)),
+     col ="#11111105", pch = 16, ylim=c(0, 4), yaxs="i",
+     xaxt="n", xlab="Chromosomes", las = 1, ylab="Ploidy", xaxs="i")
+abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
+with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=1, cex=0.5, tick=F))
+with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=0, cex=0.5, tick=F))
 ```
 
 
@@ -348,7 +321,6 @@ lines(pon$bin, pon$norm.pat, lwd=0.5)
 #sd = sd(unlist(pon.norm.clean)/2, na.rm=T)
 #pon$pat.z = (pon$norm.pat-2)/2 / sd
 #pon$ttest = ifelse(pon$gc_blocked | pon$var_blocked, 1, 2*pnorm(q=-abs(pon$pat.z)))
-
 #plot(seq(from=-10, to=10, by=0.1), dnorm(seq(from=-10, to=10, by=0.1)), type='l', col="gray",
 #     main="Patien z-values compared to estimated PON distribution", ylab="Density", xlab="z-value")
 #lines(density(pon$pat.z, na.rm=T), col="red")
@@ -367,8 +339,6 @@ lines(pon$bin, pon$norm.pat, lwd=0.5)
 #  }
 #  return(pon_norm)
 #}
-
-
 #means_panel_of_normals <- function(pon) {
 #  
 #  pon_means <- apply(pon[ , 6:(ncol(pon))], 1, function(x) mean(x, na.rm = TRUE))
@@ -380,9 +350,6 @@ lines(pon$bin, pon$norm.pat, lwd=0.5)
 
 ```{r, write the PON table, echo = FALSE}
 #pon = panel_of_normals_normalization(pon)
-
 #pon = means_panel_of_normals(pon)
-
-write.table(pon, file = paste0(pon.name, ".tsv"), sep = "\t", row.names = TRUE, col.names = NA)
+write.table(pon, file = paste0(params$pon_name, ".tsv"), sep = "\t", row.names = TRUE, col.names = NA)
 ```
-

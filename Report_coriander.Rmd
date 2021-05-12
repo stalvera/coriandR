@@ -76,14 +76,16 @@ stats$unique_mapping_pairs = round(sum(patient[,6]/2))
 
 ## Distribution of sequencing depth per bin in sample
 ```{r echo = FALSE}
-hist(pon$patient, breaks=seq(0, max(pon$patient)+20, by=20),
-     xlim=c(0, median(pon$patient)*2),
-     freq=F, xlab="Depth per bin", border=F, col="blue", main="")
-pon.hist = hist(pon$sum/median(pon$sum)*median(pon$patient), breaks=seq(0, max(pon$sum), by=50), plot=F)
-lines(pon.hist$mids, pon.hist$density, col="red")
-abline(v = c(0.5, 1, 1.5, 2) *median(pon$patient), col='gray', lty=2)
-legend("right", legend="scaled PON", col="red", lty=1, cex=0.8)
-mtext(c("x1", "x2", "x3", "x4"), at=c(0.5, 1, 1.5, 2) *median(pon$patient), side=3)
+with(pon[!(pon$gc_blocked | pon$var_blocked), ], {
+  hist(patient, breaks=seq(0, max(patient)+20, by=20),
+       xlim=c(0, median(patient)*2),
+       freq=F, xlab="Depth per bin", border=F, col="blue", main="")
+  pon.hist = hist(sum/median(sum)*median(patient), breaks=seq(0, max(sum), by=50), plot=F)
+  lines(pon.hist$mids, pon.hist$density, col="red")
+  abline(v = c(0.5, 1, 1.5, 2) *median(patient), col='gray', lty=2)
+  legend("right", legend="scaled PON", col="red", lty=1, cex=0.8)
+  mtext(c("x1", "x2", "x3", "x4"), at=c(0.5, 1, 1.5, 2) *median(patient), side=3)
+})
 
 ```
 
@@ -95,6 +97,16 @@ pon$rate = with(pon, ifelse(sum > 0, patient/(sum+patient), 0))
 hist(pon$rate[!(pon$gc_blocked | pon$var_blocked)])
 pon$binom = pon$binom = apply(pon[, c("patient", "sum")], 1, function(x) ifelse(x[2] > 0, binom.test(x[1], x[2]+x[1], median(pon$rate[!(pon$gc_blocked | pon$var_blocked | pon$rate == 0)]))$p.value, 1))
 pon$binom.adjust = p.adjust(pon$binom, method="hochberg")
+
+plot(pon$sum/median(pon$sum), pon$patient/median(pon$patient), xlim=c(0, 2), ylim=c(0, 2), col=ifelse(pon$Chr %in% c("chrX", "chrY"), "#ff111122", "#11111122"), pch=16)
+abline(0, 1)
+
+plot(pon$bin, pon$patient.norm, ylim=c(0,4))
+pon$norm.sum = pon$sum/median(pon$sum)
+pon$norm.sd = pon$norm_sd/2
+pon.norm.sum.reg = glm(norm.sd ~ norm.sum, pon, family=binomial)
+predict(pon.norm.sum.reg, newdata=data.frame(norm.sum=seq(0, 2, 0.01)))
+abline(pon.norm.sum.reg)
 ```
 
 ```{r}

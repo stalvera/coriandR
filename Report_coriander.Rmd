@@ -18,10 +18,15 @@ library(knitr)
 
 ```{r echo = FALSE}
 meta = data.frame(t(read.table(paste0(params$data, ".meta.tsv"), stringsAsFactors = F, row.names=1)))
+if(tolower(meta$gender) %in% c("f", "female")) {
+  meta$gender = "f"
+} else {
+  meta$gender = "m"
+}
 ```
 
 
-```{r echo = FALSE}
+```{r echo = FALSE, fig.width=7, fig.height=3}
 ###################################################################################################
 # VORBEREITEN
 ###################################################################################################
@@ -33,21 +38,22 @@ patient = read.table(meta$count_data, header=TRUE, row.names = 1, stringsAsFacto
 
 pon = read.table(meta$pon, header=TRUE, row.names = 1, stringsAsFactors = F)
 
-if(tolower(meta$gender) %in% c("f", "female")) {
+if(meta$gender == "f") {
   ponXf = pon[pon$Chr == "chrX_F", ]
   ponXf$Chr = "chrX"
-  pon = rbind(pon[!pon$Chr %in% c("chrX_F", "chrX_M", "chrY_M"), ], ponXf)
+  pon = rbind(pon[pon$gender == "neutral", ], ponXf)
   pon$patient = patient[patient$Chr != "chrY", 6]
 } else {
   ponXm = pon[pon$Chr == "chrX_M", ]
   ponXm$Chr = "chrX"
   ponYm = pon[pon$Chr == "chrY_M", ]
   ponYm$Chr = "chrY"
-  pon = rbind(pon[!pon$Chr %in% c("chrX_F", "chrX_M", "chrY_M"), ], ponXm, ponYm)
+  pon = rbind(pon[pon$gender == "neutral", ], ponXm, ponYm)
   pon$patient = patient[, 6]
 }
+pon$bin = 1:nrow(pon)
 
-pon$patient.norm = pon$patient / median(pon$patient) *2
+pon$patient.norm = pon$patient / median(pon$patient) * ifelse(pon$gender == "M", 1, 2)
 
 cytobands = read.table("tables/cytobands_sort.2.tsv", header=TRUE, sep = "\t", row.names = 1, stringsAsFactors = F)
 cancer_genes = read.table("tables/cancer.driver.genes_unique.and.goi.aml.csv", header=TRUE, sep = "\t",
@@ -55,6 +61,19 @@ cancer_genes = read.table("tables/cancer.driver.genes_unique.and.goi.aml.csv", h
 all_genes = read.table("tables/all_genes.tsv", header=TRUE, row.names = 1, stringsAsFactors = F)
 all_genes$start = as.numeric(all_genes$start)
 all_genes$end = as.numeric(all_genes$end)
+
+
+contigs = data.frame(pos=tapply(pon$bin, pon$Chr, mean))
+contigs$chr = gsub("chr", "", rownames(contigs))
+contigs = contigs[order(as.numeric(contigs$chr)),]
+
+par(mar=c(2, 4, 1, 1))
+plot(pon$bin, pon$patient, ylim = c(0, qnorm(0.999, mean(pon$patient), sd(pon$patient))),
+     col = "#11111111",
+     pch = 16, xaxt="n", xlab="", las = 1, ylab="read depth", xaxs="i")
+abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
+with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=-.5, cex.axis=0.5, tick=F))
+with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=-1, cex.axis=0.5, tick=F))
 
 ```
 
@@ -80,7 +99,7 @@ with(pon[!(pon$gc_blocked | pon$var_blocked), ], {
   hist(patient, breaks=seq(0, max(patient)+20, by=20),
        xlim=c(0, median(patient)*2),
        freq=F, xlab="Depth per bin", border=F, col="blue", main="")
-  pon.hist = hist(sum/median(sum)*median(patient), breaks=seq(0, max(sum), by=50), plot=F)
+  pon.hist = hist(norm.clean.mean/2*median(patient), breaks=seq(0, max(norm.clean.mean*median(patient), na.rm=T), by=20), plot=F)
   lines(pon.hist$mids, pon.hist$density, col="red")
   abline(v = c(0.5, 1, 1.5, 2) *median(patient), col='gray', lty=2)
   legend("right", legend="scaled PON", col="red", lty=1, cex=0.8)
@@ -94,19 +113,46 @@ This graph shows the distribution of the bins according to the depth of the sequ
 
 ```{r echo = FALSE}
 pon$rate = with(pon, ifelse(sum > 0, patient/(sum+patient), 0))
-hist(pon$rate[!(pon$gc_blocked | pon$var_blocked)])
-pon$binom = pon$binom = apply(pon[, c("patient", "sum")], 1, function(x) ifelse(x[2] > 0, binom.test(x[1], x[2]+x[1], median(pon$rate[!(pon$gc_blocked | pon$var_blocked | pon$rate == 0)]))$p.value, 1))
+hist(pon$rate[!(pon$gc_blocked | pon$var_blocked)], breaks=100)
+pon.rate = median(pon$rate[!(pon$gc_blocked | pon$var_blocked | pon$rate == 0)])
+pon$binom = pon$binom = apply(pon[, c("patient", "sum")], 1, function(x) ifelse(x[2] > 0, binom.test(x[1], x[2]+x[1], pon.rate)$p.value, 1))
 pon$binom.adjust = p.adjust(pon$binom, method="hochberg")
 
-plot(pon$sum/median(pon$sum), pon$patient/median(pon$patient), xlim=c(0, 2), ylim=c(0, 2), col=ifelse(pon$Chr %in% c("chrX", "chrY"), "#ff111122", "#11111122"), pch=16)
-abline(0, 1)
+par(mar=c(2, 4, 1, 1))
+plot(pon$bin, pon$patient.norm, ylim=c(0, 4),
+     col = ifelse(pon$binom.adjust < 0.01, "#99555555", "#11111111"),
+     pch = 16, xaxt="n", xlab="", las = 1, ylab="read depth", xaxs="i")
+abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
+with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=-.5, cex.axis=0.5, tick=F))
+with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=-1, cex.axis=0.5, tick=F))
 
-plot(pon$bin, pon$patient.norm, ylim=c(0,4))
-pon$norm.sum = pon$sum/median(pon$sum)
-pon$norm.sd = pon$norm_sd/2
-pon.norm.sum.reg = glm(norm.sd ~ norm.sum, pon, family=binomial)
-predict(pon.norm.sum.reg, newdata=data.frame(norm.sum=seq(0, 2, 0.01)))
-abline(pon.norm.sum.reg)
+#plot(pon$norm.clean.mean, pon$patient.norm, xlim=c(0, 4), ylim=c(0, 4), col=ifelse(pon$gender != "neutral", "#ff111122", "#11111122"), pch=16)
+#abline(0, 1)
+
+
+```
+
+```{r}
+sd = mean(unlist(pon$norm.clean.sd)/2, na.rm=T)
+pon$pat.z = (pon$patient.norm-2)/2 / sd
+pon$ttest = ifelse(pon$gc_blocked | pon$var_blocked, 1, 2*pnorm(q=-abs(pon$pat.z)))
+
+plot(seq(from=-10, to=10, by=0.1), dnorm(seq(from=-10, to=10, by=0.1)), type='l', col="gray",
+     main="Patient z-values compared to estimated PON distribution", ylab="Density", xlab="z-value")
+lines(density((pon$norm.clean.mean-2)/2/sd, na.rm=T), col="blue")
+lines(density(pon$pat.z, na.rm=T), col="red")
+legend("topright", legend=c("Estimated PON", "Patient"), col=c("gray", "red"), lty=1)
+
+pon$gauss = apply(pon[, c("patient.norm", "norm.clean.mean", "norm.clean.sd")], 1, function(x) min(pnorm(q=x[1], mean=x[2], sd=x[3]), pnorm(q=x[1], mean=x[2], sd=x[3], lower.tail=F)))
+pon$gauss.adjust = p.adjust(pon$ttest, method="hochberg")
+
+par(mar=c(2, 4, 1, 1))
+plot(pon$bin, pon$patient.norm, ylim=c(0, 4),
+     col = ifelse(pon$gauss.adjust < 0.01, "#ff000055", "#11111111"),
+     pch = 16, xaxt="n", xlab="", las = 1, ylab="read depth", xaxs="i")
+abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
+with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=-.5, cex.axis=0.5, tick=F))
+with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=-1, cex.axis=0.5, tick=F))
 ```
 
 ```{r}

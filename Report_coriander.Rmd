@@ -34,10 +34,13 @@ if(tolower(meta$gender) %in% c("f", "female")) {
 # SCHRITT 1
 # Daten einlesen: Patient, PON, Giemsa-Bands, alle Gene und eine Auswahl der relevanten.
 
+# Read patient counts from featureCounts output
 patient = read.table(meta$count_data, header=TRUE, row.names = 1, stringsAsFactors = F)
 
+# Read PON table
 pon = read.table(meta$pon, header=TRUE, row.names = 1, stringsAsFactors = F)
 
+# Make PON gender specific for patient and concatenate the data
 if(meta$gender == "f") {
   ponXf = pon[pon$Chr == "chrX_F", ]
   ponXf$Chr = "chrX"
@@ -51,18 +54,24 @@ if(meta$gender == "f") {
   pon = rbind(pon[pon$gender == "neutral", ], ponXm, ponYm)
   pon$patient = patient[, 6]
 }
-pon$bin = 1:nrow(pon)
+pon$bin = 1:nrow(pon)  # needs recounting after gendering
 
+# Calculate normalized patient counts relative to median sequencing depth and multiply by expected ploidy
 pon$patient.norm = pon$patient / median(pon$patient) * ifelse(pon$gender == "M", 1, 2)
 
+# Giemsa-bands for plotting
 cytobands = read.table("tables/cytobands_sort.2.tsv", header=TRUE, sep = "\t", row.names = 1, stringsAsFactors = F)
+
+# List of relevant cancer genes
 cancer_genes = read.table("tables/cancer.driver.genes_unique.and.goi.aml.csv", header=TRUE, sep = "\t",
                           stringsAsFactors = F)
+
+# List of all genes
 all_genes = read.table("tables/all_genes.tsv", header=TRUE, row.names = 1, stringsAsFactors = F)
 all_genes$start = as.numeric(all_genes$start)
 all_genes$end = as.numeric(all_genes$end)
 
-
+# List of chromosomes for plotting
 contigs = data.frame(pos=tapply(pon$bin, pon$Chr, mean))
 contigs$chr = gsub("chr", "", rownames(contigs))
 contigs = contigs[order(as.numeric(contigs$chr)),]

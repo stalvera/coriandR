@@ -144,7 +144,6 @@ with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line
 ```{r}
 sd = mean(unlist(pon$norm.clean.sd)/2, na.rm=T)
 pon$pat.z = (pon$patient.norm-2)/2 / sd
-pon$ttest = ifelse(pon$gc_blocked | pon$var_blocked, 1, 2*pnorm(q=-abs(pon$pat.z)))
 
 plot(seq(from=-10, to=10, by=0.1), dnorm(seq(from=-10, to=10, by=0.1)), type='l', col="gray",
      main="Patient z-values compared to estimated PON distribution", ylab="Density", xlab="z-value")

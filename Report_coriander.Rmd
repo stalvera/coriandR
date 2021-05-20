@@ -57,7 +57,7 @@ if(meta$gender == "f") {
 pon$bin = 1:nrow(pon)  # needs recounting after gendering
 
 # Calculate normalized patient counts relative to median sequencing depth and multiply by expected ploidy
-pon$patient.norm = pon$patient / median(pon$patient) * ifelse(pon$gender == "M", 1, 2)
+pon$patient.norm = pon$patient / median(pon$patient) * 2
 
 # Giemsa-bands for plotting
 cytobands = read.table("tables/cytobands_sort.2.tsv", header=TRUE, sep = "\t", row.names = 1, stringsAsFactors = F)
@@ -151,8 +151,8 @@ lines(density((pon$norm.clean.mean-2)/2/sd, na.rm=T), col="blue")
 lines(density(pon$pat.z, na.rm=T), col="red")
 legend("topright", legend=c("Estimated PON", "Patient"), col=c("gray", "red"), lty=1)
 
-pon$gauss = apply(pon[, c("patient.norm", "norm.clean.mean", "norm.clean.sd")], 1, function(x) min(pnorm(q=x[1], mean=x[2], sd=x[3]), pnorm(q=x[1], mean=x[2], sd=x[3], lower.tail=F)))
-pon$gauss.adjust = p.adjust(pon$ttest, method="hochberg")
+pon$gauss = apply(pon[, c("patient.norm", "norm.clean.mean", "norm.clean.sd")], 1, function(x) ifelse(x[1] == 0, 1, min(pnorm(q=x[1], mean=x[2], sd=x[3]), pnorm(q=x[1], mean=x[2], sd=x[3], lower.tail=F), 1)))
+pon$gauss.adjust = p.adjust(pon$gauss, method="hochberg")
 
 par(mar=c(2, 4, 1, 1))
 plot(pon$bin, pon$patient.norm, ylim=c(0, 4),

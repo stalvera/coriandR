@@ -83,6 +83,7 @@ Bins with counts outside of 99% of the normal distribution are marked in red. Th
 The values of gonosomes for men and women are represented: (from left to right) X male, X female, Y male, Y female. 
 
 ```{r, PON gender segregation, echo = FALSE}
+pon$ploidy = 2
 ponXf = pon[pon$Chr == "chrX", ]
 ponXf$Chr = "chrX_F"
 ponXf$gender = "F"
@@ -91,11 +92,13 @@ ponXf[, meta$sample[meta$gender != "F"]] = NA
 ponXm = pon[pon$Chr == "chrX", ]
 ponXm$Chr = "chrX_M"
 ponXm$gender = "M"
+ponXm$ploidy = 1
 ponXm[, meta$sample[meta$gender != "M"]] = NA
 
 ponYm = pon[pon$Chr == "chrY", ]
 ponYm$Chr = "chrY_M"
 ponYm$gender = "M"
+ponYm$ploidy = 1
 ponYm[, meta$sample[meta$gender != "M"]] = NA
 
 pon$gender = "neutral"
@@ -138,9 +141,9 @@ Gonosomes are shifted to match a ploidy of 2 in males to facilitate comparabilit
 
 pon.norm = pon[, meta$pon.col]
 pon.norm = data.frame(t(t(pon.norm)/apply(pon.norm, 2, median, na.rm=T)))
-pon.norm = data.frame(pon.norm/apply(pon.norm, 1, median, na.rm=T) * ifelse(pon$gender == "M", 1, 2))
+pon.norm = data.frame(pon.norm/apply(pon.norm, 1, median, na.rm=T))
 
-plot(rep(pon$bin, nrow(meta)), c(as.matrix(pon.norm)),      #col=rep(gray(1:length(pon.cols)/length(pon.cols), alpha=0.1), each=nrow(pon)),
+plot(rep(pon$bin, nrow(meta)), c(as.matrix(pon.norm)*pon$ploidy),      #col=rep(gray(1:length(pon.cols)/length(pon.cols), alpha=0.1), each=nrow(pon)),
      col ="#11111105", pch = 16, ylim=c(0, 4), yaxs="i",
      xaxt="n", xlab="Chromosomes", las = 1, ylab="Ploidy", xaxs="i")
 abline(v=c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555")
@@ -177,7 +180,7 @@ points(pon$gc[!is.na(pon$norm.var) & pon$norm.var > 0.2], rep(0.2, sum(!is.na(po
 gc.var = predict(loess(norm.var ~ gc, pon[pon$gc > 0.35 & pon$gc < 0.6,], span=0.5), 350:600/1000)
 lines(350:600/1000, gc.var, col="blue")
 
-plot(rep(pon$gc, ncol(pon.norm)), c(as.matrix(pon.norm)), pch=20, xlim=c(0.25, 0.6), ylim=c(0, 4),
+plot(rep(pon$gc, ncol(pon.norm)), c(as.matrix(pon.norm)*pon$ploidy), pch=20, xlim=c(0.25, 0.6), ylim=c(0, 4),
      col = ifelse(pon$gc_blocked, "tomato3", "#11111111"),
      xlab="GC-content", ylab="Ploidy", las = 1, cex = 0.5)
 abline(h=c(1.5, 2.5), col="red", lty=2)
@@ -200,7 +203,7 @@ pon$norm.clean.var = c(apply(pon.norm.clean, 1, var, na.rm=T))
 pon$norm.clean.sd = c(apply(pon.norm.clean, 1, sd, na.rm=T))
 pon$var_blocked = pon$sum < 1 | (!is.na(pon$norm.clean.var) & pon$norm.clean.var > qnorm(0.9, mean(pon$norm.clean.var[!pon$gc_blocked], na.rm=T), sd(pon$norm.clean.var[!pon$gc_blocked], na.rm=T)))
 
-plot(rep(pon$bin, nrow(meta)), c(as.matrix(pon.norm.clean)),
+plot(rep(pon$bin, nrow(meta)), c(as.matrix(pon.norm.clean)*pon$ploidy),
      col=ifelse(pon$gc_blocked, ifelse(pon$var_blocked, "#aa33aa55", "#aa331155"), ifelse(pon$var_blocked, "#1133aa55", "#11111105")),
      ylim=c(0, 4), yaxs="i", pch=16,
      xaxt="n", xlab="Chromosomes", las = 1, ylab="Ploidy", xaxs="i")
@@ -226,7 +229,7 @@ plot(gc, norm.clean.var, col="#11111105", pch=20, ylim=c(0.00001, 0.2), xlim=c(0
 gc.var.clean = predict(loess(norm.clean.var ~ gc, pon[pon$gc > 0.33 & pon$gc < 0.6,], span=0.5), 330:550/1000)
 lines(330:550/1000, gc.var.clean, col="blue")
 
-plot(rep(gc, ncol(pon.norm)), c(as.matrix(pon.norm.clean[!pon$gc_blocked & !pon$var_blocked, ])), pch=20, xlim=c(0.25, 0.6), ylim=c(0, 4),
+plot(rep(gc, ncol(pon.norm)), c(as.matrix(pon.norm.clean[!pon$gc_blocked & !pon$var_blocked, ])*pon$ploidy), pch=20, xlim=c(0.25, 0.6), ylim=c(0, 4),
      col="#11111105", xlab="GC-content",
      ylab="Ploidy", las = 1, cex = 0.5)
 abline(h=c(1.5, 2.5), col="red", lty=2)
@@ -239,7 +242,7 @@ abline(h=c(1.5, 2.5), col="red", lty=2)
 The final filtered PON should exhibit a tight distribution around 2 for all chromosomes and should not exceed the red boundaries, in order to reliably call monoallelic deletions or insertions.
 
 ```{r, corrected PON overview, echo = FALSE, fig.width = 12, fig.height = 5}
-plot(rep(pon$bin[!pon$gc_blocked & !pon$var_blocked], nrow(meta)), c(as.matrix(pon.norm.clean[!pon$gc_blocked & !pon$var_blocked, ])),
+plot(rep(pon$bin[!pon$gc_blocked & !pon$var_blocked], nrow(meta)), c(as.matrix(pon.norm.clean[!pon$gc_blocked & !pon$var_blocked, ])*pon$ploidy[!pon$gc_blocked & !pon$var_blocked]),
      col ="#11111105", pch = 16, ylim=c(0, 4), yaxs="i",
      xaxt="n", xlab="Chromosomes", las = 1, ylab="Ploidy", xaxs="i")
 abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)

@@ -125,21 +125,17 @@ This graph shows the distribution of the bins according to the depth of the sequ
 pon$rate = with(pon, ifelse(sum > 0, patient/(sum+patient), 0))
 hist(pon$rate[!(pon$gc_blocked | pon$var_blocked)], breaks=100)
 pon.rate = median(pon$rate[!(pon$gc_blocked | pon$var_blocked | pon$rate == 0)])
+abline(v=pon.rate, col="red")
 pon$binom = pon$binom = apply(pon[, c("patient", "sum")], 1, function(x) ifelse(x[2] > 0, binom.test(x[1], x[2]+x[1], pon.rate)$p.value, 1))
 pon$binom.adjust = p.adjust(pon$binom, method="hochberg")
 
 par(mar=c(2, 4, 1, 1))
-plot(pon$bin, pon$patient.norm, ylim=c(0, 4),
-     col = ifelse(pon$binom.adjust < 0.01, "#99555555", "#11111111"),
-     pch = 16, xaxt="n", xlab="", las = 1, ylab="read depth", xaxs="i")
+plot(pon$bin, pon$patient,
+     col = ifelse(pon$binom.adjust < 0.001, "#ff000011", "#11111111"),
+     pch = 16, xaxt="n", xlab="", las = 1, ylab="ploidy", xaxs="i")
 abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
 with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=-.5, cex.axis=0.5, tick=F))
 with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=-1, cex.axis=0.5, tick=F))
-
-#plot(pon$norm.clean.mean, pon$patient.norm, xlim=c(0, 4), ylim=c(0, 4), col=ifelse(pon$gender != "neutral", "#ff111122", "#11111122"), pch=16)
-#abline(0, 1)
-
-
 ```
 
 ```{r fig.width=7, fig.height=3}
@@ -154,13 +150,17 @@ lines(density((pon$norm.clean.mean-2)/2/sd, na.rm=T), col="blue")
 lines(density(pon$pat.z, na.rm=T), col="red")
 legend("topright", legend=c("theoretical z-Distribution", "Patient", "scaled PON"), col=c("gray", "red", "blue"), lty=1, cex=0.7)
 
-pon$gauss = apply(pon[, c("patient.norm", "norm.clean.mean", "norm.clean.sd")], 1, function(x) ifelse(x[1] == 0, 1, min(pnorm(q=x[1], mean=x[2], sd=x[3]), pnorm(q=x[1], mean=x[2], sd=x[3], lower.tail=F), 1)))
+pon$gauss = apply(pon[, c("patient.norm", "norm.clean.mean", "norm.clean.sd")], 1, function(x) ifelse(x[1] == 0, 1, min(pnorm(q=x[1], mean=x[2], sd=x[3], lower.tail=x[1]<x[2]), 1)*2))
 pon$gauss.adjust = p.adjust(pon$gauss, method="hochberg")
 
 par(mar=c(2, 4, 1, 1))
-plot(pon$bin, pon$patient.norm, ylim=c(0, 4),
-     col = ifelse(pon$gauss.adjust < 0.01, "#ff000055", "#11111111"),
-     pch = 16, xaxt="n", xlab="", las = 1, ylab="read depth", xaxs="i")
+with(pon[!pon$gc_blocked & !pon$var_blocked, ],
+     plot(bin, patient.norm, ylim=c(0, 4),
+          col = ifelse(gauss.adjust < 0.01, "#ff000055", "#11111111"),
+          pch = 16, xaxt="n", xlab="", las = 1, ylab="ploidy", xaxs="i")
+)
+with(pon[!pon$gc_blocked & !pon$var_blocked & pon$gauss.adjust < 0.01 , ],
+     arrows(bin, norm.clean.mean, bin, patient.norm, length=0.03, angle=45, code=2, col="#ff000022", lwd=3))
 abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
 with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=-.5, cex.axis=0.5, tick=F))
 with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=-1, cex.axis=0.5, tick=F))

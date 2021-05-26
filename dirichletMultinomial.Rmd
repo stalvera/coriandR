@@ -1,0 +1,265 @@
+---
+title: "Modeling the Null Distribution"
+author: "Ho-Ryun Chung"
+date: "5/21/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Preparations
+
+1. load the data
+```{r}
+data = read.csv("example.pon.csv")
+patient = read.table('samples/test_patient.fc.tsv', header=TRUE, row.names = 1, stringsAsFactors = F)
+patient = patient[patient$Chr != 'chrM', ]
+patient = patient[, 6]
+```
+2. extract the counts
+```{r}
+counts = data[, 7:25]
+```
+3. load `tensorflow` and `keras` packages
+```{r}
+library(tensorflow)
+library(keras)
+```
+
+## tensorflow/keras model to fit the Dirchlet-Multinomial Distribution
+
+The Dirichlet-Multinomial distribution is a multivariate count distribution with probability mass function
+
+$$
+  P(\mathbf{x}|\boldsymbol{\alpha}) = \frac{\Gamma\left(\sum_k{\alpha_k}\right)\: \Gamma\left(1 + \sum_k x_k\right)}{ \: \Gamma\left(\sum_k{x_k + \alpha_k}\right)} \: \prod_k \frac{\Gamma\left(x_k + \alpha_k\right)}{\Gamma\left(x_k + 1\right)\Gamma\left(\alpha_k\right)},
+$$
+where $\boldsymbol{x}$ denotes a count vector with $K$ components $x_k$ ($k = 1, \ldots, K$) and a parameter vector $\boldsymbol{\alpha}$ also with $K$ components $\alpha_k$ ($k = 1, \ldots, K$). $\Gamma\left(x\right)$ is the Gamma function.
+
+The Dirichlet-Multinomial distribution models a multivariate count vector, where the probabilites $p_k$ cannot be assumed to be constant. In the latter case we would use the multinomial distribution with fixed parameters $\boldsymbol{p}$.
+
+Based on the counts for the bins for the panel of normals, we want to estimate the parameters $\boldsymbol{\alpha}$ of the Dirichlet-Multinomial distribution. To do so we want to maximize the posterior distribution of the parameters $\boldsymbol{\alpha}$ given the data $\mathbf{X}$:
+$$
+P(\boldsymbol{\alpha}|\mathbf{X}) = \frac{P(\mathbf{X}|\boldsymbol{\alpha})\:P(\boldsymbol{\alpha})}{P(\mathbf{X})},
+$$
+where $\mathbf{X}$ is a matrix of observations with bins in the rows and samples in the columns, i.e. $x_{k,j}$ is the count for bin $k$ for sample $j$. The likelihood is given by
+$$
+  P(\mathbf{X}|\boldsymbol{\alpha}) = \prod_j \left\{\frac{\Gamma\left(\sum_k{\alpha_k}\right)\: \Gamma\left(1 + \sum_k x_{k,j}\right)}{ \: \Gamma\left(\sum_k{x_{k,j} + \alpha_k}\right)} \: \prod_k \frac{\Gamma\left(x_{k,j} + \alpha_k\right)}{\Gamma\left(x_{k,j} + 1\right)\Gamma\left(\alpha_k\right)}\right\}
+$$
+We assume a constant Prior
+$$
+P(\boldsymbol{\alpha}) = 1
+$$
+
+As usual the maximization is perform for $\log P(\boldsymbol{\alpha}|\mathbf{X})$ and we remove all terms that are constant:
+$$
+  \log P(\boldsymbol{\alpha}|\mathbf{X}) = C + \sum_j \left\{\log \Gamma\left(\sum_k \alpha_k\right) - \log \Gamma\left(\sum_k x_{k,j} + \alpha_k\right) \: \sum_k \left[\log \Gamma\left(x_{k_j} + \alpha_k\right) - \log \Gamma\left(\alpha_k\right)\right]\right\}
+$$
+
+Our objective function is then
+$$
+  f(\boldsymbol{\alpha}) = -\sum_j \left\{\log \Gamma\left(\sum_k \alpha_k\right) - \log \Gamma\left(\sum_k x_{k,j} + \alpha_k\right) \: \sum_k \left[\log \Gamma\left(x_{k_j} + \alpha_k\right) - \log \Gamma\left(\alpha_k\right)\right]\right\},
+$$
+which we minimize using gradient descent as implemented in `tensorflow`.
+
+1. start with a count matrix $Mm$, which has the samples in the rows and the bins in the columns, i.e. it is the transpose of the `counts`
+```{r, eval}
+Mm = t(counts)
+```
+
+2. fill a logical vector for each bin, which is set to `TRUE` if at least one sample had a count $>0$ in this bin and to `FALSE` otherwise
+```{r}
+sel = colSums(Mm) > 0
+```
+3. compute a initial estimate for $\boldsymbol{\alpha}$ as the log of mean count per bin (remember, we do this only in the non all-zero columns indicated by `sel`)
+```{r}
+logAlphaStart = log(colMeans(Mm[ ,sel]))
+```
+4. define a `keras/tensorflow` model for fitting:
+```{r}
+DM <- function(){
+  keras_model_custom(
+    model_fn = function(self){
+      self$logAlpha <- tf$Variable(logAlphaStart, name = "logalpha", trainable = TRUE)
+      function(inputs, mask = NULL, training = TRUE){
+        alpha = tf$exp(self$logAlpha)
+        alphaN = inputs + alpha
+        
+        tf$reduce_sum(tf$math$lbeta(alpha) - tf$math$lbeta(alphaN))
+      }
+    }
+  )
+}
+  
+loss <- function(model, inputs){
+  model(inputs)
+}
+grad <- function(model, inputs){
+  with ( 
+    tf$GradientTape() %as% tape, 
+    {
+      loss_value <- loss(model, inputs)
+    }
+  )
+  list(loss_value = as.numeric(loss_value), grad = tape$gradient(loss_value, list(model$logAlpha)))
+}
+```  
+the implementation explained:
+
+  - the model is implemented as a `keras` custom model 
+```{r, eval = FALSE}
+DM <- function(){
+  keras_model_custom(
+    model_fn = function(self){
+# define the parameters $\log \boldsymbol{\alpha}$ = `sel$logAlpha`
+      self$logAlpha <- tf$Variable(logAlphaStart, name = "logalpha", trainable = TRUE)
+# define the function that computes $f(\boldsymbol{\alpha})$
+      function(inputs, mask = NULL, training = TRUE){
+# the argument `inputs` is the matrix `Mm`
+# recover $\boldsymbol{\alpha}$ from $\log \boldsymbol{\alpha}$>
+        alpha = tf$exp(self$logAlpha)
+#  you have to use `tf$exp` to do so, because we want to use the autodifferentiation feature of `tensorflow`
+# generate a matrix of the form $x_{k,j} + \alpha_k$
+        alphaN = inputs + alpha
+# compute the objective function
+        tf$reduce_sum(tf$math$lbeta(alpha) - tf$math$lbeta(alphaN))
+      }
+    }
+  )
+}
+```
+
+`tf$math$lbeta` is defined as
+$$
+  lbeta(z) = \sum_k \Gamma(z_k) - \Gamma\left(\sum_k z_k\right)
+$$  
+i.e. `tf$math$lbeta(alpha)` gives 
+$$
+  \sum_k \Gamma\left(\alpha_k\right) - \Gamma\left(\sum_k \alpha_k\right)
+$$  
+and `tf$math$lbeta(alphaN)` gives a vector (for each sample an entry)
+$$
+  \sum_k \Gamma\left(x_{k,j} + \alpha_k \right) - \Gamma\left(\sum_k x_{k,j} + \alpha_k\right)
+$$
+  - define a loss function, returns only the value of $f(\boldsymbol{\alpha})$
+```{r, eval = FALSE}
+loss <- function(model, inputs){
+  model(inputs)
+}
+```
+  - and a function that computes the gradient
+```{r, eval = FALSE}
+grad <- function(model, inputs){
+  with ( 
+    tf$GradientTape() %as% tape, 
+    {
+      loss_value <- loss(model, inputs)
+    }
+  )
+  list(loss_value = as.numeric(loss_value), grad = tape$gradient(loss_value, list(model$logAlpha)))
+}
+```
+
+
+5. initialize the mode
+```{r}
+model = DM()
+```
+
+6. set up fitting infrastructure
+```{r}
+optimizer = optimizer_adam(lr = 0.01, amsgrad = TRUE)
+```
+We chose `adam` as optimizer
+
+define the minimal loss from the starting point
+```{r}
+minLoss = as.numeric(loss(model, Mm[, sel]))
+```
+
+and the corresponding parameter values
+```{r}
+minPars = model$trainable_variables
+```
+
+7. start the gradient descent
+```{r}
+cat("Initial loss: ", as.numeric(loss(model, Mm[, sel])), "\n")
+  
+for (i in 1:2000) {
+  grads = grad(model, Mm[, sel])
+  if (grads$loss_value < minLoss){
+    minLoss = grads$loss_value
+    minPars = model$trainable_variables
+  }
+  optimizer$apply_gradients(purrr::transpose(
+    list(grads$grad, model$trainable_variables)
+  ))
+    
+  if (i %% 20 == 0)
+    cat("Loss at step ", i, ": ", as.numeric(grads$loss_value),minLoss, "\n")
+}
+```
+here we set the number of iterations to 1000, maybe you want to use more?
+
+8. recover the (log) alphas from `tensorflow`
+
+```{r}
+alpha = rep(NA, NCOL(Mm))
+alpha[sel] = as.array(minPars[[1]])
+```
+
+
+## statistical testing with the Dirichlet-Multinomial Distribution
+
+The marginal distribution for a count $z_{k}$ is given by the Beta-Binomial Distribution
+$$
+  P(z_k|\boldsymbol{\alpha}) = BBinom\left[z_k; \alpha = \alpha_k,\: \beta = \left(\sum_\ell \alpha_\ell\right) - \alpha_k,\: N = \sum_\ell z_\ell\right]
+$$
+it is implemented in the package `extraDistr`
+```{r}
+library(extraDistr)
+```
+
+
+### comparison Beta-Binomial distribution to Binomial distribution
+
+if we assume that the $p_k$ are constant, we can calculate the $p_k$ as the fraction of reads in bin $k$ over all samples:
+```{r}
+p = patient
+p = p / sum(p)
+```
+```{r, echo = FALSE}
+
+logSumExp = function(x){
+  maxX = max(x, na.rm = TRUE)
+  maxX + log(sum(exp(x - maxX), na.rm = TRUE))
+}
+
+```
+
+lets look at bin `r (k = 200)` and the distribution for sample `r (j = 1)` (PON) with a total number of reads of `r (N = sum(counts[,j]))`
+```{r}
+curve(dbinom(x, size = sum(patient), prob = p[k]), from = min(patient), to = max(patient)-1, ylab = "density", frame = FALSE)
+curve(dbbinom(x, size = sum(patient), alpha = exp(alpha[k]), beta = exp(logSumExp(alpha[-k]))), add = TRUE, col = "orange")
+abline(v = patient[k], col = "red")
+```
+
+the Binomial distribution (in black) is much narrower than the Beta-binomial distribution. The Beta-Binomial Distribution is much broader. The actually observed value for bin $k = `r k`$ for sample $j = `r j`$ (red vertical line) lies well outside the Binomial distribution, while it falls still in a highly probable region of the Beta-Binomial distribution.
+
+
+#### Calculate p-values for the Beta-Binomial Distribution
+
+well this is not that easy, given the large $N$
+
+Remember: in order to calculate the p-value, we compute the probability for $z_k$ and then we sum up all probabilities that are lower or equal....
+
+```{r}
+pbbinom(patient[k], size = sum(patient), alpha = exp(alpha[k]), beta = exp(logSumExp(alpha[-k])))
+```
+
+
+
+

@@ -36,6 +36,7 @@ if(tolower(meta$gender) %in% c("f", "female")) {
 
 # Read patient counts from featureCounts output
 patient = read.table(meta$count_data, header=TRUE, row.names = 1, stringsAsFactors = F)
+patient = patient[patient$Chr != 'chrM', ]
 
 # Read PON table
 pon = read.table(meta$pon, header=TRUE, row.names = 1, stringsAsFactors = F)
@@ -103,7 +104,7 @@ stats$unique_mapping_pairs = round(sum(patient[,6]/2))
 
 
 ## Distribution of sequencing depth per bin in sample
-```{r echo = FALSE}
+```{r echo = FALSE, fig.width=7, fig.height=4}
 with(pon[!(pon$gc_blocked | pon$var_blocked), ], {
   hist(patient, breaks=seq(0, max(patient)+20, by=20),
        xlim=c(0, median(patient)*2),
@@ -120,7 +121,7 @@ with(pon[!(pon$gc_blocked | pon$var_blocked), ], {
 This graph shows the distribution of the bins according to the depth of the sequencing. The red curve represents the distribution of the PON scaled to the same depth. Ideally, the histogram and the red curve match completely. If not, this can indicate larger deletions (the first peak decreases) or larger amplifications (the third peak increases). 
 
 
-```{r echo = FALSE}
+```{r echo = FALSE, fig.width=7, fig.height=3}
 pon$rate = with(pon, ifelse(sum > 0, patient/(sum+patient), 0))
 hist(pon$rate[!(pon$gc_blocked | pon$var_blocked)], breaks=100)
 pon.rate = median(pon$rate[!(pon$gc_blocked | pon$var_blocked | pon$rate == 0)])
@@ -141,15 +142,17 @@ with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line
 
 ```
 
-```{r}
+```{r fig.width=7, fig.height=3}
 sd = mean(unlist(pon$norm.clean.sd)/2, na.rm=T)
 pon$pat.z = (pon$patient.norm-2)/2 / sd
 
+pat.dens = density(pon$pat.z, na.rm=T)
+
 plot(seq(from=-10, to=10, by=0.1), dnorm(seq(from=-10, to=10, by=0.1)), type='l', col="gray",
-     main="Patient z-values compared to estimated PON distribution", ylab="Density", xlab="z-value")
+     main="Patient z-values compared to estimated PON distribution", ylab="Density", xlab="z-value", ylim=c(0, max(pat.dens$y)))
 lines(density((pon$norm.clean.mean-2)/2/sd, na.rm=T), col="blue")
 lines(density(pon$pat.z, na.rm=T), col="red")
-legend("topright", legend=c("Estimated PON", "Patient"), col=c("gray", "red"), lty=1)
+legend("topright", legend=c("theoretical z-Distribution", "Patient", "scaled PON"), col=c("gray", "red", "blue"), lty=1, cex=0.7)
 
 pon$gauss = apply(pon[, c("patient.norm", "norm.clean.mean", "norm.clean.sd")], 1, function(x) ifelse(x[1] == 0, 1, min(pnorm(q=x[1], mean=x[2], sd=x[3]), pnorm(q=x[1], mean=x[2], sd=x[3], lower.tail=F), 1)))
 pon$gauss.adjust = p.adjust(pon$gauss, method="hochberg")

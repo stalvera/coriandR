@@ -16,10 +16,6 @@ printf "Mapping statistics ... "
 printf "raw_read_pairs\t" > output/$1/mapping.stats.tsv; zcat $3 | awk 'NR%4==2{print}' | sort | uniq -c | wc -l >> output/$1/mapping.stats.tsv; zcat $3 | awk 'NR%4==2{a+=length($1)}END{print "average_read_length\t"(a/NR*4)}' >> output/$1/mapping.stats.tsv
 printf "were generated\n \n"
 
-printf "Mapping with Bowtie2 ... "
-bowtie2 -x $index -p $(nproc) -1 $3 -2 $4 | sam2bam output/$1/patient.bam 2> output/$1/logs.bowtie.txt
-printf "was successful\n \n"
-
 printf "Sample table ... "
 ~/bin/subread-2.0.0-source/bin/featureCounts -a $gtf -o output/$1/patient.fc.tsv -T $(nproc) output/$1/patient.bam 2> output/$1/logs.featureCounts.txt
 printf "was with FeatureCounts\n \n"
@@ -44,7 +40,3 @@ printf "was successful\n \n"
 
 printf "You can find the report under Report_coriandR.pdf in folder ./coriandR/output/$1 \n \n"
 
-rm output/$1/patient.bam
-rm output/$1/patient.bai
-
-printf "BAM file was deleted \n \n"

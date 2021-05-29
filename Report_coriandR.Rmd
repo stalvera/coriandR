@@ -1,5 +1,5 @@
 ---
-title: "Report CORIANDR: ChrOmosomal abeRration Identifier AND Reporter in R"
+title: "Report coriandR: ChrOmosomal abeRration Identifier AND Reporter in R"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: pdf_document
 ---

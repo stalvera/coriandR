@@ -42,9 +42,9 @@ printf "You can find the report under report.create.a.pon.and.stats.pdf in folde
 
 rm report.create.a.pon.and.stats.Rmd
 rm config.txt
+rm pon.data.tsv
 rm *.bam
 rm *.bai
-rm pon.data.tsv
 rm GRCh38.p13.genome.sizes
 rm GRCh38.p13.genome.1M.bed
 rm GRCh38.p13.genome.1M.nucl

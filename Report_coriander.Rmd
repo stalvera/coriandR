@@ -3,7 +3,7 @@ title: "Report CORIANDR: ChrOmosomal abeRration Identifier AND Reporter in R"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: pdf_document
 params:
-  data: patient
+  data: "samples/test_patient"
 ---
 
 ```{r, setup, include=FALSE}
@@ -17,11 +17,11 @@ library(knitr)
 
 
 ```{r echo = FALSE}
-meta = data.frame(t(read.table(paste0(params$data, ".meta.tsv"), stringsAsFactors = F, row.names=1)))
-if(tolower(meta$gender) %in% c("f", "female")) {
-  meta$gender = "f"
+patient.meta = data.frame(t(read.table(paste0(params$data, ".meta.tsv"), stringsAsFactors = F, row.names=1)))
+if(tolower(patient.meta$gender) %in% c("f", "female")) {
+  patient.meta$gender = "f"
 } else {
-  meta$gender = "m"
+  patient.meta$gender = "m"
 }
 ```
 
@@ -35,14 +35,14 @@ if(tolower(meta$gender) %in% c("f", "female")) {
 # Daten einlesen: Patient, PON, Giemsa-Bands, alle Gene und eine Auswahl der relevanten.
 
 # Read patient counts from featureCounts output
-patient = read.table(meta$count_data, header=TRUE, row.names = 1, stringsAsFactors = F)
+patient = read.table(patient.meta$count_data, header=TRUE, row.names = 1, stringsAsFactors = F)
 patient = patient[patient$Chr != 'chrM', ]
 
 # Read PON table
-pon = read.table(meta$pon, header=TRUE, row.names = 1, stringsAsFactors = F)
+pon = read.table(patient.meta$pon, header=TRUE, row.names = 1, stringsAsFactors = F)
 
 # Make PON gender specific for patient and concatenate the data
-if(meta$gender == "f") {
+if(patient.meta$gender == "f") {
   ponXf = pon[pon$Chr == "chrX_F", ]
   ponXf$Chr = "chrX"
   pon = rbind(pon[pon$gender == "neutral", ], ponXf)
@@ -58,7 +58,7 @@ if(meta$gender == "f") {
 pon$bin = 1:nrow(pon)  # needs recounting after gendering
 
 # Calculate normalized patient counts relative to median sequencing depth and multiply by expected ploidy
-pon$patient.norm = pon$patient / median(pon$patient) * 2
+pon$patient.norm = pon$patient / median(pon$patient) * 2 / pon$ploidy
 
 # Giemsa-bands for plotting
 cytobands = read.table("tables/cytobands_sort.2.tsv", header=TRUE, sep = "\t", row.names = 1, stringsAsFactors = F)
@@ -90,26 +90,26 @@ with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line
 
 ## Sample ID
 ```{r echo = FALSE}
-cat(meta$name)
+cat(patient.meta$name)
 ```
 
 ```{r echo = FALSE}
-stats = data.frame(t(read.table(meta$mapping_stats, stringsAsFactors = F, row.names=1)))
+stats = data.frame(t(read.table(patient.meta$mapping_stats, stringsAsFactors = F, row.names=1)))
 stats$unique_mapping_pairs = round(sum(patient[,6]/2))
 ```
 
 | Sample characterisic | Value |
 |---------------------:|:------|
-| Sample name          | `r meta$name` |
+| Sample name          | `r patient.meta$name` |
 
 
 ## Distribution of sequencing depth per bin in sample
 ```{r echo = FALSE, fig.width=7, fig.height=4}
-with(pon[!(pon$gc_blocked | pon$var_blocked), ], {
+with(pon[!pon$blocked, ], {
   hist(patient, breaks=seq(0, max(patient)+20, by=20),
-       xlim=c(0, median(patient)*2),
-       freq=F, xlab="Depth per bin", border=F, col="blue", main="")
-  pon.hist = hist(norm.clean.mean/2*median(patient), breaks=seq(0, max(norm.clean.mean*median(patient), na.rm=T), by=20), plot=F)
+       #xlim=c(0, median(patient)*2),
+       freq=F, xlab="Depth per bin", border=T, col="blue", main="")
+  pon.hist = hist(norm.clean.mean*median(patient), breaks=seq(0, max(norm.clean.mean*median(patient)*2, na.rm=T), by=20), plot=F)
   lines(pon.hist$mids, pon.hist$density, col="red")
   abline(v = c(0.5, 1, 1.5, 2) *median(patient), col='gray', lty=2)
   legend("right", legend="scaled PON", col="red", lty=1, cex=0.8)
@@ -123,15 +123,15 @@ This graph shows the distribution of the bins according to the depth of the sequ
 
 ```{r echo = FALSE, fig.width=7, fig.height=3}
 pon$rate = with(pon, ifelse(sum > 0, patient/(sum+patient), 0))
-hist(pon$rate[!(pon$gc_blocked | pon$var_blocked)], breaks=100)
-pon.rate = median(pon$rate[!(pon$gc_blocked | pon$var_blocked | pon$rate == 0)])
-abline(v=pon.rate, col="red")
-pon$binom = pon$binom = apply(pon[, c("patient", "sum")], 1, function(x) ifelse(x[2] > 0, binom.test(x[1], x[2]+x[1], pon.rate)$p.value, 1))
+hist(pon$rate[!pon$blocked], breaks=100)
+pon.rate = median(pon$rate[!(pon$blocked | pon$rate == 0)])
+abline(v=c(pon.rate, pon.rate/2*1), col="red")
+pon$binom = apply(pon[, c("patient", "sum", "ploidy")], 1, function(x) ifelse(x[2] > 0, binom.test(x[1], x[2]+x[1], pon.rate/2*x[3])$p.value, 1))
 pon$binom.adjust = p.adjust(pon$binom, method="hochberg")
 
 par(mar=c(2, 4, 1, 1))
 plot(pon$bin, pon$patient,
-     col = ifelse(pon$binom.adjust < 0.001, "#ff000011", "#11111111"),
+     col = ifelse(!pon$blocked & pon$binom.adjust < 0.001, "#ff000011", "#11ff1111"),
      pch = 16, xaxt="n", xlab="", las = 1, ylab="ploidy", xaxs="i")
 abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
 with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=-.5, cex.axis=0.5, tick=F))
@@ -139,31 +139,64 @@ with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line
 ```
 
 ```{r fig.width=7, fig.height=3}
-sd = mean(unlist(pon$norm.clean.sd)/2, na.rm=T)
-pon$pat.z = (pon$patient.norm-2)/2 / sd
+sd = mean(unlist(pon$norm.clean.sd), na.rm=T)
+pon$pat.z = (pon$patient.norm-1) / sd
 
 pat.dens = density(pon$pat.z, na.rm=T)
 
 plot(seq(from=-10, to=10, by=0.1), dnorm(seq(from=-10, to=10, by=0.1)), type='l', col="gray",
      main="Patient z-values compared to estimated PON distribution", ylab="Density", xlab="z-value", ylim=c(0, max(pat.dens$y)))
-lines(density((pon$norm.clean.mean-2)/2/sd, na.rm=T), col="blue")
-lines(density(pon$pat.z, na.rm=T), col="red")
+lines(density((pon$norm.clean.mean-1)/sd, na.rm=T), col="blue")
+lines(pat.dens, col="red")
 legend("topright", legend=c("theoretical z-Distribution", "Patient", "scaled PON"), col=c("gray", "red", "blue"), lty=1, cex=0.7)
 
 pon$gauss = apply(pon[, c("patient.norm", "norm.clean.mean", "norm.clean.sd")], 1, function(x) ifelse(x[1] == 0, 1, min(pnorm(q=x[1], mean=x[2], sd=x[3], lower.tail=x[1]<x[2]), 1)*2))
 pon$gauss.adjust = p.adjust(pon$gauss, method="hochberg")
 
 par(mar=c(2, 4, 1, 1))
-with(pon[!pon$gc_blocked & !pon$var_blocked, ],
-     plot(bin, patient.norm, ylim=c(0, 4),
+with(pon[!pon$blocked, ],
+     plot(bin, patient.norm*ploidy, ylim=c(0, 4),
           col = ifelse(gauss.adjust < 0.01, "#ff000055", "#11111111"),
           pch = 16, xaxt="n", xlab="", las = 1, ylab="ploidy", xaxs="i")
 )
-with(pon[!pon$gc_blocked & !pon$var_blocked & pon$gauss.adjust < 0.01 , ],
-     arrows(bin, norm.clean.mean, bin, patient.norm, length=0.03, angle=45, code=2, col="#ff000022", lwd=3))
+with(pon[!pon$blocked & pon$gauss.adjust < 0.01 , ],
+     arrows(bin, norm.clean.mean*ploidy, bin, patient.norm*ploidy, length=0.03, angle=45, code=2, col="#ff000022", lwd=3))
 abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
 with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=-.5, cex.axis=0.5, tick=F))
 with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=-1, cex.axis=0.5, tick=F))
+```
+
+```{r}
+library(extraDistr)
+
+bbinom.pvalue = function(x, N, alpha, beta) {
+  d = dbbinom(x, N, alpha, beta)
+  direction = -1
+  dnext = dbbinom(x-1, N, alpha, beta)
+  if(dnext < d) {
+    direction = 1
+    dnext = dbbinom(x+1, N, alpha, beta)
+  }
+  i = 1
+  q = 0
+  while(dnext > d) {
+    q = q + dnext
+    i = 1+i
+    dnext = dbbinom(x+direction*i, N, alpha, beta)
+  }
+  return(1-q)
+}
+
+N = sum(pon$patient[!pon$blocked])
+pon$pbbinom = 1
+pon$pbbinom[!pon$blocked] = sapply(which(!pon$blocked), function(x) bbinom.pvalue(pon$patient[x], N, exp(pon$alpha[x]), exp(pon$beta[x])))
+
+plot(pon$bin, pon$patient,
+     col =ifelse(pon$pbbinom < 0.01, "#ff1111aa", "#11111199"), pch = ".", yaxs="i",
+     xaxt="n", xlab="Chromosomes", las = 1, ylab="alpha", xaxs="i")
+abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
+with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=1, cex=0.5, tick=F))
+with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=0, cex=0.5, tick=F))
 ```
 
 ```{r}

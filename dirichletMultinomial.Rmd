@@ -21,7 +21,9 @@ patient = patient[, 6]
 ```
 2. extract the counts
 ```{r}
+sel = !(pon$gc_blocked | pon$var_blocked) & pon$gender == "neutral"
 counts = data[, 7:25]
+counts = pon[sel, meta$pon.col]
 ```
 3. load `tensorflow` and `keras` packages
 ```{r}
@@ -71,11 +73,11 @@ Mm = t(counts)
 
 2. fill a logical vector for each bin, which is set to `TRUE` if at least one sample had a count $>0$ in this bin and to `FALSE` otherwise
 ```{r}
-sel = colSums(Mm) > 0
+
 ```
 3. compute a initial estimate for $\boldsymbol{\alpha}$ as the log of mean count per bin (remember, we do this only in the non all-zero columns indicated by `sel`)
 ```{r}
-logAlphaStart = log(colMeans(Mm[ ,sel]))
+logAlphaStart = log(colMeans(Mm))
 ```
 4. define a `keras/tensorflow` model for fitting:
 ```{r}
@@ -176,7 +178,7 @@ We chose `adam` as optimizer
 
 define the minimal loss from the starting point
 ```{r}
-minLoss = as.numeric(loss(model, Mm[, sel]))
+minLoss = as.numeric(loss(model, Mm))
 ```
 
 and the corresponding parameter values
@@ -186,10 +188,10 @@ minPars = model$trainable_variables
 
 7. start the gradient descent
 ```{r}
-cat("Initial loss: ", as.numeric(loss(model, Mm[, sel])), "\n")
+cat("Initial loss: ", as.numeric(loss(model, Mm)), "\n")
   
-for (i in 1:2000) {
-  grads = grad(model, Mm[, sel])
+for (i in 1:200) {
+  grads = grad(model, Mm)
   if (grads$loss_value < minLoss){
     minLoss = grads$loss_value
     minPars = model$trainable_variables
@@ -206,9 +208,16 @@ here we set the number of iterations to 1000, maybe you want to use more?
 
 8. recover the (log) alphas from `tensorflow`
 
-```{r}
-alpha = rep(NA, NCOL(Mm))
-alpha[sel] = as.array(minPars[[1]])
+```{r fig.width=7, fig.height=3}
+pon$alpha = NA
+pon$alpha[sel] = as.array(minPars[[1]])
+
+plot(pon$bin, exp(pon$alpha),
+     col ="#11111199", pch = ".", yaxs="i",
+     xaxt="n", xlab="Chromosomes", las = 1, ylab="alpha", xaxs="i")
+abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
+with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=1, cex=0.5, tick=F))
+with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=0, cex=0.5, tick=F))
 ```
 
 
@@ -221,6 +230,12 @@ $$
 it is implemented in the package `extraDistr`
 ```{r}
 library(extraDistr)
+logSumExp = function(x){
+  maxX = max(x, na.rm = TRUE)
+  maxX + log(sum(exp(x - maxX), na.rm = TRUE))
+}
+pon$beta = NA
+pon$beta[sel] = sapply(which(sel), function(x) logSumExp(pon$alpha[-x]))
 ```
 
 
@@ -228,15 +243,38 @@ library(extraDistr)
 
 if we assume that the $p_k$ are constant, we can calculate the $p_k$ as the fraction of reads in bin $k$ over all samples:
 ```{r}
-p = patient
-p = p / sum(p)
-```
-```{r, echo = FALSE}
-
-logSumExp = function(x){
-  maxX = max(x, na.rm = TRUE)
-  maxX + log(sum(exp(x - maxX), na.rm = TRUE))
+bbinom.pvalue = function(x, N, alpha, beta) {
+  d = dbbinom(x, N, alpha, beta)
+  direction = -1
+  dnext = dbbinom(x-1, N, alpha, beta)
+  if(dnext < d) {
+    direction = 1
+    dnext = dbbinom(x+1, N, alpha, beta)
+  }
+  i = 1
+  q = 0
+  while(dnext > d) {
+    q = q + dnext
+    i = 1+i
+    dnext = dbbinom(x+direction*i, N, alpha, beta)
+  }
+  return(1-q)
 }
+
+N = sum(pon$patient[sel])
+pon$pbbinom[sel] = sapply(which(sel), function(x) bbinom.pvalue(pon$patient[x], N, exp(pon$alpha[x]), exp(pon$beta[x])))
+
+
+pon$patient.p = NA
+pon$patient.p = pon$patient / N
+
+
+plot(pon$bin, pon$patient,
+     col =ifelse(pon$pbbinom < 0.05, "#ff1111aa", "#11111199"), pch = ".", yaxs="i",
+     xaxt="n", xlab="Chromosomes", las = 1, ylab="alpha", xaxs="i")
+abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
+with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=1, cex=0.5, tick=F))
+with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=0, cex=0.5, tick=F))
 
 ```
 

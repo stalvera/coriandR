@@ -4,7 +4,7 @@ subtitle: "Report"
 date: "`r format(Sys.time(), '%d-%m-%Y')`"
 output: pdf_document
 params:
-  pon_name: pon
+  pon_name: "samples/test_pon"
 ---
 
 # Generating PON: "`r params$pon_name`"
@@ -202,6 +202,7 @@ pon$norm.clean.mean = rowMeans(pon.norm.clean, na.rm=T)
 pon$norm.clean.var = c(apply(pon.norm.clean, 1, var, na.rm=T))
 pon$norm.clean.sd = c(apply(pon.norm.clean, 1, sd, na.rm=T))
 pon$var_blocked = pon$sum < 1 | (!is.na(pon$norm.clean.var) & pon$norm.clean.var > qnorm(0.9, mean(pon$norm.clean.var[!pon$gc_blocked], na.rm=T), sd(pon$norm.clean.var[!pon$gc_blocked], na.rm=T)))
+pon$blocked = pon$var_blocked | pon$gc_blocked
 
 plot(rep(pon$bin, nrow(meta)), c(as.matrix(pon.norm.clean)*pon$ploidy),
      col=ifelse(pon$gc_blocked, ifelse(pon$var_blocked, "#aa33aa55", "#aa331155"), ifelse(pon$var_blocked, "#1133aa55", "#11111105")),
@@ -224,12 +225,12 @@ axis(4, 0:4, 0:4, las=2)
 #pon$norm.pat[pon$var_blocked | pon$gc_blocked] = NA
 
 par(mfrow=c(1,2))
-with(pon[!pon$gc_blocked & !pon$var_blocked, ], {
+with(pon[!pon$blocked, ], {
 plot(gc, norm.clean.var, col="#11111105", pch=20, ylim=c(0.00001, 0.2), xlim=c(0.25, 0.6), xlab="GC-content", ylab="Variance", las = 1, cex = 0.5)
 gc.var.clean = predict(loess(norm.clean.var ~ gc, pon[pon$gc > 0.33 & pon$gc < 0.6,], span=0.5), 330:550/1000)
 lines(330:550/1000, gc.var.clean, col="blue")
 
-plot(rep(gc, ncol(pon.norm)), c(as.matrix(pon.norm.clean[!pon$gc_blocked & !pon$var_blocked, ])*pon$ploidy), pch=20, xlim=c(0.25, 0.6), ylim=c(0, 4),
+plot(rep(gc, ncol(pon.norm)), c(as.matrix(pon.norm.clean[!pon$blocked, ])*pon$ploidy), pch=20, xlim=c(0.25, 0.6), ylim=c(0, 4),
      col="#11111105", xlab="GC-content",
      ylab="Ploidy", las = 1, cex = 0.5)
 abline(h=c(1.5, 2.5), col="red", lty=2)
@@ -242,7 +243,7 @@ abline(h=c(1.5, 2.5), col="red", lty=2)
 The final filtered PON should exhibit a tight distribution around 2 for all chromosomes and should not exceed the red boundaries, in order to reliably call monoallelic deletions or insertions.
 
 ```{r, corrected PON overview, echo = FALSE, fig.width = 12, fig.height = 5}
-plot(rep(pon$bin[!pon$gc_blocked & !pon$var_blocked], nrow(meta)), c(as.matrix(pon.norm.clean[!pon$gc_blocked & !pon$var_blocked, ])*pon$ploidy[!pon$gc_blocked & !pon$var_blocked]),
+plot(rep(pon$bin[!pon$blocked], nrow(meta)), c(as.matrix(pon.norm.clean[!pon$blocked, ])*pon$ploidy[!pon$blocked]),
      col ="#11111105", pch = 16, ylim=c(0, 4), yaxs="i",
      xaxt="n", xlab="Chromosomes", las = 1, ylab="Ploidy", xaxs="i")
 abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
@@ -273,6 +274,108 @@ axis(4, 0:4, 0:4, las=2)
 #legend("topright", legend=c("Estimated PON", "Patient"), col=c("gray", "red"), lty=1)
 ```
 
+
+```{r}
+library(tensorflow)
+library(keras)
+
+DM <- function(){
+  keras_model_custom(
+    model_fn = function(self){
+      self$logAlpha <- tf$Variable(logAlphaStart, name = "logalpha", trainable = TRUE)
+      function(inputs, mask = NULL, training = TRUE){
+        alpha = tf$exp(self$logAlpha)
+        alphaN = inputs + alpha
+        
+        tf$reduce_sum(tf$math$lbeta(alpha) - tf$math$lbeta(alphaN))
+      }
+    }
+  )
+}
+  
+loss <- function(model, inputs){
+  model(inputs)
+}
+grad <- function(model, inputs){
+  with ( 
+    tf$GradientTape() %as% tape, 
+    {
+      loss_value <- loss(model, inputs)
+    }
+  )
+  list(loss_value = as.numeric(loss_value), grad = tape$gradient(loss_value, list(model$logAlpha)))
+}
+```
+
+```{r fig.width=10, fig.height=4}
+learn = function(data, iterations=1000, rate=0.01, verbose=FALSE) {
+
+  logAlphaStart = log(colMeans(data))
+  model = keras_model_custom(
+    model_fn = function(self){
+      self$logAlpha <- tf$Variable(logAlphaStart, name = "logalpha", trainable = TRUE)
+      function(inputs, mask = NULL, training = TRUE){
+        alpha = tf$exp(self$logAlpha)
+        alphaN = inputs + alpha
+        
+        tf$reduce_sum(tf$math$lbeta(alpha) - tf$math$lbeta(alphaN))
+      }
+    }
+  )
+  optimizer = optimizer_adam(lr = rate, amsgrad = TRUE)
+  minLoss = as.numeric(loss(model, data))
+  minPars = model$trainable_variables
+  
+  if(verbose) { cat("Initial loss: ", minLoss, "\n") }
+  for (i in 1:iterations) {
+    grads = grad(model, data)
+    if (grads$loss_value < minLoss){
+      minLoss = grads$loss_value
+      minPars = model$trainable_variables
+    }
+    optimizer$apply_gradients(purrr::transpose(
+      list(grads$grad, model$trainable_variables)
+    ))
+      
+    if (verbose & i %% 20 == 0)
+      cat("Loss at step ", i, ": ", minLoss, "\n")
+  }
+  return(as.array(minPars[[1]]))
+}
+
+pon$alpha = NA
+
+sel = !pon$blocked & pon$gender == "neutral"
+Mm = t(pon[sel, meta$pon.col])
+pon$alpha[sel] = learn(Mm, 1000, verbose=T)
+
+sel = !pon$blocked & pon$gender != "M"
+temp_gender = pon$gender[sel]
+Mm = t(pon[sel, meta$pon.col][, meta$gender == "F"])
+falpha = learn(Mm, 1000, verbose=T)
+pon$alpha[sel & pon$gender == "F"] = falpha[temp_gender == "F"]
+
+sel = !pon$blocked & pon$gender != "F"
+temp_gender = pon$gender[sel]
+Mm = t(pon[sel, meta$pon.col][, meta$gender == "M"])
+malpha = learn(Mm, 1000, verbose=T)
+pon$alpha[sel & pon$gender == "M"] = malpha[temp_gender == "M"]
+
+logSumExp = function(x){
+  maxX = max(x, na.rm = TRUE)
+  maxX + log(sum(exp(x - maxX), na.rm = TRUE))
+}
+pon$beta = NA
+pon$beta = sapply(pon$bin, function(x) logSumExp(pon$alpha[-x]))
+
+
+plot(pon$bin, exp(pon$alpha),
+     col ="#11111199", pch = ".", yaxs="i",
+     xaxt="n", xlab="Chromosomes", las = 1, ylab="alpha", xaxs="i")
+abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
+with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=1, cex=0.5, tick=F))
+with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=0, cex=0.5, tick=F))
+```
 
 
 

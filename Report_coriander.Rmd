@@ -131,7 +131,7 @@ pon$binom.adjust = p.adjust(pon$binom, method="hochberg")
 
 par(mar=c(2, 4, 1, 1))
 plot(pon$bin, pon$patient,
-     col = ifelse(!pon$blocked & pon$binom.adjust < 0.001, "#ff000011", "#11ff1111"),
+     col = ifelse(!pon$blocked & pon$binom.adjust < 0.001, "#ff000011", "#11111111"),
      pch = 16, xaxt="n", xlab="", las = 1, ylab="ploidy", xaxs="i")
 abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
 with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=-.5, cex.axis=0.5, tick=F))

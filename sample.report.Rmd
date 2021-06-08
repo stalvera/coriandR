@@ -1,117 +1,600 @@
 ---
-title: "Report ´coriandR: ChrOmosomal abeRration Identifier AND Reporter in R´"
-subtitle: "Report sample"
+title: "Report CORIANDR: ChrOmosomal abeRration Identifier AND Reporter in R"
 date: "`r format(Sys.time(), '%d-%m-%Y')`"
 output: pdf_document
+params:
+  data: patient
 ---
 
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+#knitr::opts_knit$set(root.dir = "/media/vera/big_data/mr_genoms/test.report.coriandR")
+#knitr::opts_knit$set(root.dir = "/home/vera/dissertation/test.report.coriandR")
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 knitr::opts_chunk$set(dev = "png", dev.args = list(type = "cairo-png"))
-```
 
-```{r sample data, echo = FALSE}
-patient.data = read.table("patient.data.tsv", stringsAsFactors = F)
-patient_name = patient.data[1, 2]
-gender = as.character(patient.data[2, 2])
-```
-
-```{r data definition, echo = FALSE}
 library(ggplot2)
 library(knitr)
-
-patient = read.table("patient.fc.tsv", header=TRUE, row.names = 1, stringsAsFactors = F) 
-bin_data = read.table("pon.tsv", header=TRUE, row.names = 1, stringsAsFactors = F)
-bin_data$Start = as.integer(bin_data$Start)
-bin_data$End = as.integer(bin_data$End)
-
-# gc-content, created with bedtools
-gc = read.table("GRCh38.p13.genome.1M.nucl", stringsAsFactors = T)
-pon$gc = gc[gc$V1 != 'chrM', 5]
-
-#The bands table contains the g-bands of the human genome. Cheung VG, Nowak N, Jang W, Kirsch IR, Zhao S, Chen XN, Furey TS, Kim UJ, Kuo WL, Olivier M et al. Integration of cytogenetic landmarks into the draft sequence of the human genome. Nature. 2001 Feb 15;409(6822):953-8. PMID: 11237021
-cytobands = read.table("../../tables/cytobands_sort.2.tsv", header=TRUE, sep = "\t", row.names = 1, stringsAsFactors = F)
-
-cancer_genes = read.table("../../tables/cancer.driver.genes_unique.and.goi.aml.csv", header=TRUE, sep = "\t", stringsAsFactors = F)
-all_genes = read.table("../../tables/all_genes.tsv", header=TRUE, row.names = 1, stringsAsFactors = F)
-all_genes$start = as.integer(all_genes$start)
-all_genes$end = as.integer(all_genes$end)
-```
-
-```{r mapping stats, echo = FALSE}
-stats = read.table("mapping.stats.tsv", stringsAsFactors = F)
-stats[nrow(stats) +1, ] = list(as.character("unique_mapped_pairs"), round(sum(patient[ , 6])/2))
-stats[nrow(stats) +1, ] = list(as.character("gender"), gender)
-
-stats[ , 1] = c("row read pairs", "average read length", "unique mapped pairs", "gender")
-
-library(knitr)
-kable(stats, digits = 0, col.names = NULL, align = "r")
+library(optparse)
+library(data.table)
+library(HMMcopy)
 ```
 
 
-## Distribution of bin depth in sample
-The following plot shows the distribution of the bins according to the depth of the sequencing. The blue curve represents the distribution of the bins in the PON.
-
-Optimally the histogram and the blue curve match completely. If not, this can indicate larger deletions (the first peak decreases) or larger amplifications (the third peak increases). 
-
-```{r Distribution of bin depth in sample, echo = FALSE}
-ggplot(data = patient, mapping = aes(x = patient[ , 6])) +
-         geom_histogram(aes(y = stat(density)), binwidth = 10) +
-         geom_density(data = bin_data, aes(x = mean * median(patient[, 6], na.rm = TRUE)/2), color = "steelblue3") +
-         xlim(0, median(patient[, 6])*2.5) +
-         xlab(" ") +
-         theme_classic()
+```{r patient meta data, echo = FALSE}
+patient.meta = data.frame(t(read.table(paste0(params$data, ".meta.tsv"), stringsAsFactors = F, row.names=1)))
+if(tolower(patient.meta$gender) %in% c("f", "female")) {
+  patient.meta$gender = "f"
+} else {
+  patient.meta$gender = "m"
+}
 ```
 
-```{r pon gender adjust, echo = FALSE}
-# depending on the gender of the sample, only the same sex chromosomes are included in the calculation
-pon.gender.adjust = function(pon, gender) {
-  if (gender == "M") {
-    chrn = "chrX"
-    pon.copy = pon[pon$Chr == "chrX_M", ]
-    pon.copy$Chr = chrn
-    pon = rbind(pon, pon.copy)
-    
-    chrn = "chrY"
-    pon.copy = pon[pon$Chr == "chrY_M", ]
-    pon.copy$Chr = chrn
-    pon = rbind(pon, pon.copy)
-    
-    pon = pon[!(pon$Chr == "chrX_F" | pon$Chr == "chrX_M" | pon$Chr == "chrY_M"), ]
-  }
+
+```{r data definition, echo = FALSE, fig.width=7, fig.height=3}
+# Read patient counts from featureCounts output
+patient = read.table("patient.fc.tsv", header=TRUE, row.names = 1, stringsAsFactors = F)
+patient = patient[patient$Chr != 'chrM', ]
+
+# Read PON table
+pon = read.table("pon.tsv", header=TRUE, row.names = 1, stringsAsFactors = F)
+
+# Make PON gender specific for patient and concatenate the data
+if(patient.meta$gender == "f") {
+  ponXf = pon[pon$Chr == "chrX_F", ]
+  ponXf$Chr = "chrX"
+  pon = rbind(pon[pon$gender == "neutral", ], ponXf)
+  pon$patient = patient[patient$Chr != "chrY", 6]
+} else {
+  ponXm = pon[pon$Chr == "chrX_M", ]
+  ponXm$Chr = "chrX"
+  ponYm = pon[pon$Chr == "chrY_M", ]
+  ponYm$Chr = "chrY"
+  pon = rbind(pon[pon$gender == "neutral", ], ponXm, ponYm)
+  pon$patient = patient[, 6]
+}
+pon$bin = 1:nrow(pon)  # needs recounting after gendering
+
+# Calculate normalized patient counts relative to median sequencing depth and multiply by expected ploidy
+pon$patient.norm = pon$patient / median(pon$patient) * 2 / pon$ploidy
+
+# Giemsa-bands for plotting
+# The bands table contains the g-bands of the human genome. Cheung VG, Nowak N, Jang W, Kirsch IR, Zhao S, Chen XN, Furey TS, Kim UJ, Kuo WL, Olivier M et al. Integration of cytogenetic landmarks into the draft sequence of the human genome. Nature. 2001 Feb 15;409(6822):953-8. PMID: 11237021
+cytobands = read.table("cytobands.tsv", header=TRUE, sep = "\t", row.names = 1, stringsAsFactors = F)
+#begin and end of giemsa bands for karyotyping
+band.borders = read.table("band.borders.tsv", header=TRUE, sep = "\t", row.names = 1, stringsAsFactors = F)
+
+# List of relevant cancer genes
+cancer_genes = read.table("cancer_genes.csv", header=TRUE, sep = "\t", stringsAsFactors = F)
+
+# List of all genes
+all_genes = read.table("all_genes.tsv", header=TRUE, row.names = 1, stringsAsFactors = F)
+all_genes$start = as.numeric(all_genes$start)
+all_genes$end = as.numeric(all_genes$end)
+
+# List of chromosomes for plotting
+contigs = data.frame(pos=tapply(pon$bin, pon$Chr, mean))
+contigs$chr = gsub("chr", "", rownames(contigs))
+contigs = contigs[order(as.numeric(contigs$chr)),]
+par(mar=c(2, 4, 1, 1))
+plot(pon$bin, pon$patient, ylim = c(0, qnorm(0.999, mean(pon$patient), sd(pon$patient))),
+     col = "#11111111",
+     pch = 16, xaxt="n", xlab="", las = 1, ylab="read depth", xaxs="i")
+abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
+with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=-.5, cex.axis=0.5, tick=F))
+with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=-1, cex.axis=0.5, tick=F))
+
+```
+
+
+## Sample characteristics and mapping statistics
+
+```{r mapping statistics, echo = FALSE}
+stats = data.frame(t(read.table("mapping.stats.tsv", stringsAsFactors = F, row.names=1)))
+stats$unique_mapping_pairs = round(sum(patient[ , 6]/2))
+
+stats$raw_read_pairs = format(stats$raw_read_pairs, decimal.mark = ",", big.mark = ".", small.mark = " ", small.interval = 3)
+stats$average_read_length = format(stats$average_read_length, decimal.mark = ",", big.mark = ".", small.mark = " ", small.interval = 3)
+stats$unique_mapping_pairs = format(stats$unique_mapping_pairs, decimal.mark = ",", big.mark = ".", small.mark = " ", small.interval = 3)
+
+```
+
+| Sample characterisic | Value |
+|---------------------:|:------|
+| **Sample name**      | **`r as.character(patient.meta$name)`**     |
+| **Sample gender**    | **`r as.character(patient.meta$gender)`**   |
+| Raw read pairs       | `r as.character(stats$raw_read_pairs)`      |
+| Average read length  | `r as.character(stats$average_read_length)` |
+| Unique mapping pairs | `r as.character(stats$unique_mapping_pairs)`|
+
+
+## Distribution of sequencing depth per bin in sample
+```{r echo = FALSE, fig.width=7, fig.height=4}
+with(pon[!pon$blocked, ], 
+     {
+      hist(patient, breaks=seq(0, max(patient)+20, by=20),
+           #xlim=c(0, median(patient)*2),
+           freq=F, xlab="Depth per bin", border=T, col="blue", main="")
+      pon.hist = hist(norm.clean.mean*median(patient), breaks=seq(0, max(norm.clean.mean*median(patient)*2,  na.rm=T), by=20), plot=F, xlim = 4* median(patient))
+      lines(pon.hist$mids, pon.hist$density, col="red")
+      abline(v = c(0.5, 1, 1.5, 2) *median(patient), col='gray', lty=2)
+      legend("right", legend="scaled PON", col="red", lty=1, cex=0.8)
+      mtext(c("x1", "x2", "x3", "x4"), at=c(0.5, 1, 1.5, 2) *median(patient), side=3)
+    })
+```
+
+This graph shows the distribution of the bins according to the depth of the sequencing. The red curve represents the distribution of the PON scaled to the same depth. Ideally, the histogram and the red curve match completely. If not, this can indicate larger deletions (the first peak decreases) or larger amplifications (the third peak increases). The indications "x1, x2, x3, x4" indicate the number of copies. 
+
+\newpage
+```{r binomial test with p adjustment, echo = FALSE, fig.width=7, fig.height=3}
+pon$rate = with(pon, ifelse(sum > 0, patient/(sum+patient), 0))
+#hist(pon$rate[!pon$blocked], breaks=100, main = "Histogram of PON rate without the blocked bins", xlab = NULL)
+pon.rate = median(pon$rate[!(pon$blocked | pon$rate == 0)])
+#abline(v=c(pon.rate, pon.rate/2*1), col="red")
+# does not show the pon variance
+
+# binomial test with p adjustment according to the benjamin hochberg method 
+pon$binom = apply(pon[, c("patient", "sum", "ploidy")], 1, function(x) ifelse(x[2] > 0, binom.test(x[1], x[2]+x[1], pon.rate/2*x[3])$p.value, 1))
+pon$binom.adjust = p.adjust(pon$binom, method="hochberg")
+
+#par(mar=c(2, 4, 1, 1))
+#plot(pon$bin, pon$patient,
+#     col = ifelse(!pon$blocked & pon$binom.adjust < 0.001, "#ff000011", "#11ff1111"),
+#     pch = 16, xaxt="n", xlab="", las = 1, ylab="ploidy", xaxs="i")
+#abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
+#with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=-.5, cex.axis=0.5, tick=F))
+#with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=-1, cex.axis=0.5, tick=F))
+```
+
+
+```{r z-test, echo = FALSE, fig.width=7, fig.height=3}
+sd = mean(unlist(pon$norm.clean.sd), na.rm=T)
+pon$pat.z = (pon$patient.norm-1) / sd
+
+pat.dens = density(pon$pat.z, na.rm=T)
+
+plot(seq(from=-10, to=10, by=0.1), dnorm(seq(from=-10, to=10, by=0.1)), type='l', col="gray",
+     main="Patient z-values compared to estimated PON distribution", ylab="Density", xlab="z-value", ylim=c(0, max(pat.dens$y)))
+lines(density((pon$norm.clean.mean-1)/sd, na.rm=T), col="blue")
+lines(pat.dens, col="red")
+legend("topright", legend=c("theoretical z-Distribution", "Patient", "scaled PON"), col=c("gray", "red", "blue"), lty=1, cex=0.7)
   
-  else {
-    chrn = "chrX"
-    pon.copy = pon[pon$Chr == "chrX_F", ]
-    pon.copy$Chr = chrn
-    pon = rbind(pon, pon.copy)
+pon$gauss = apply(pon[, c("patient.norm", "norm.clean.mean", "norm.clean.sd")], 1, function(x) ifelse(x[1] == 0, 1, min(pnorm(q=x[1], mean=x[2], sd=x[3], lower.tail=x[1]<x[2]), 1)*2))
+pon$gauss.adjust = p.adjust(pon$gauss, method="hochberg")
 
-    pon = pon[!(pon$Chr == "chrX_F" | pon$Chr == "chrX_M" | pon$Chr == "chrY_M"), ]
-  }
-}
+par(mar=c(2, 4, 1, 1))
+with(pon[!pon$blocked, ],
+     plot(bin, patient.norm*ploidy, ylim=c(0, 4),
+          col = ifelse(!pon$blocked & pon$binom.adjust < 0.001, "#ff000011", "#11111111"),
+          pch = 16, xaxt="n", xlab="", las = 1, ylab="ploidy", xaxs="i")
+)
+with(pon[!pon$blocked & pon$gauss.adjust < 0.01 , ],
+     arrows(bin, norm.clean.mean*ploidy, bin, patient.norm*ploidy,
+            length=0.03, angle=45, code=2, col="#ff000022", lwd=3))
+abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
+with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=-.5, cex.axis=0.5, tick=F))
+with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=-1, cex.axis=0.5, tick=F))
 ```
 
-```{r Normalizing sample data by library size and per megabase, echo = FALSE}
-#Normalizing to a ploidity of 2, the PON looks much more straight forward aside from the samples with a second mode at 1 (gonosomes).
-pon.norm = pon[, meta$pon.col]
-#pon.norm = data.frame(t(t(pon.norm)/ apply(pon.norm, 2, median, na.rm=T)*2))
-pon.norm = data.frame(t(t(pon.norm)/(apply(pon.norm, 2, sum, na.rm=T))))
-pon.norm = data.frame(pon.norm/apply(pon.norm, 1, median, na.rm=T)*2)
 
-patient_normalization = function(patient, column_number) {
-  patient_norm <- patient[ , 1:5]
-  patient_norm$pat_bins <- data.frame(t(t(patient[ , column_number])/apply(patient[ , column_number], 1, median, na.rm=T)*2))
-  return(patient_norm)
-}
+```{r abberation characters, echo = FALSE}
+pon$aberration = with(pon[!pon$gc_blocked & !pon$var_blocked, ], factor(ifelse((pon$patient.norm > pon$norm.clean.mean & pon$binom.adjust < 0.05), 'amp', ifelse((pon$patient.norm < pon$norm.clean.mean & pon$binom.adjust < 0.05), 'del', 'normal')), levels = c('normal', 'amp', 'del')))
+```
+
+```{r segmentation algorithm, echo = FALSE}
+  segments = data.frame(Chr=character(), Start=integer(), End=integer(), Start.i=integer(), 
+                        End.i=integer(), Direction=integer(), stringsAsFactors = F)
+  last_chr = 'NULL'
+  last_direction = 0 # 0 for normal, -1 for del, +1 for amp
+  segment_start = 0
+  for (i in 1:nrow(pon[!pon$blocked, ])) {
+    if(pon$Chr[i] != last_chr) {
+      if(last_chr != 'NULL' & last_direction != 0) {
+        segments[nrow(segments) + 1, ] = list(as.character(last_chr), pon$Start[segment_start], 
+                                            pon$End[i-1], segment_start, i, last_direction)
+        #a segment is closed if a another segment was still open at the end of a chromosome 
+      }
+      last_direction = 0
+      segment_start = 0
+      last_chr = pon$Chr[i]
+    }
+
+    direction = 0
+    if(pon$aberration[i] == 'del') {
+      direction = -1
+    } else if(pon$aberration[i] == 'amp') {
+      direction = +1
+    }
+    if (direction == last_direction) {
+      next()
+    }
+    if (direction > last_direction) {
+      if (last_direction == 0) {
+        segment_start = i
+        # new del or amp segmnet is opened 
+      }
+      else if (last_direction == -1) {
+        segments[nrow(segments) + 1, ] = list(as.character(pon$Chr[i]), pon$Start[segment_start], 
+                                            pon$End[i-1], segment_start, i-1, last_direction)
+        # old del segment is closed
+        if (direction == 1) {
+          segment_start = i
+          # new amp segmnet is opened
+        }
+      }
+    } 
+    else if (direction < last_direction) {
+      if (last_direction == 0) {
+        segment_start = i
+        # new del segmnet is opened
+      }
+      else if (last_direction == 1) {
+        segments[nrow(segments) + 1, ] = list(as.character(pon$Chr[i]), pon$Start[segment_start], 
+                                            pon$End[i-1], segment_start, i-1, last_direction)
+        # old amp segment is closed
+        if (direction == -1) {
+          segment_start = i
+          # new del segmnet is opened
+        }
+      }
+    }
+    last_direction = direction
+  }
+    if(last_direction != 0) {
+      segments[nrow(segments) + 1, ] = list(as.character(pon$Chr[i]), pon$Start[segment_start], 
+                                        pon$End[i-1], segment_start, i, last_direction)
+      #a segment is closed if a segment was still open at the end of a very last chromosome
+    }
+```
+
+
+```{r segments merge algorithm, echo = FALSE}
+#??????????????????????????????????????
+#verifizierung zur zusammenfassung der segmente?
+#p-wert fuer dieses segment?
+#??????????????????????????????????????
+
+segments_merged = data.frame(Chr=character(), Start=integer(), End=integer(), Start.i=integer(), 
+                               End.i=integer(), Direction=factor(levels=c('amp', 'del')),
+                               stringsAsFactors = F)
+  
+  if(nrow(segments) < 2) return(segments_merged)
+  
+  segments_merged[1,] = list(as.character(segments$Chr[1]), 
+                             segments$Start[1], 
+                             segments$End[1],
+                             segments$Start.i[1],
+                             segments$End.i[1],
+                             ifelse(segments$Direction[1] == 1, 'amp', 'del'))
+  m = 1 #der zaehler in der tabelle "regions_merged"
+  mean_segment = 0
+  mean_pon = 0
+  #p_pon = 0
+  
+  for (r in 2:nrow(segments)) {
+    if (segments_merged$Chr[m] != segments$Chr[r] | segments_merged$Direction[m] != segments$Direction[r]) {
+      # mergen nur, wenn auf dem selben chr oder bei der gleichen ausrichtung
+      segments_merged[nrow(segments_merged) + 1, ] = list(Chr=as.character(segments$Chr[r]), 
+                                                          Start=segments$Start[r], 
+                                                          End=segments$End[r],
+                                                          Start.i=segments$Start.i[r],
+                                                          End.i=segments$End.i[r],
+                                                          Direction=ifelse(segments$Direction[r] == 1, 'amp', 'del'))
+      # die region auf einem neuen chr oder mit einer anderen richtung zu der neuen tabelle hinzufuegen
+      m = nrow(segments_merged)
+      # das ist die region, von der aus betrachtet wird
+      next
+    }
+    bin_start = segments_merged$Start.i[m]
+    bin_end = segments$End.i[r]
+    
+    mean_segment = mean(c(pon$patient.norm[bin_start]:pon$patient.norm[bin_end]), na.rm = TRUE)
+    mean_pon = mean(c(pon$norm.clean.mean[bin_start:bin_end]), na.rm = TRUE)
+    #die mittelwerte der betroffenen bins inkl. "normale" chr.abschnitte bei dem patienten und pon
+    #p_pon <- mean(bin_data$sd[bin_start:bin_end])
+    
+    #?????????????????????????????????
+    if (mean_segment > mean_pon | mean_region < mean_pon ) {
+      # wenn die mittelwerte der betroffenen bins immer noch signifikant hoch/runter sind -> mergen
+      segments_merged[m, ] = list(as.character(segments$Chr[r]), 
+                                  segments_merged$Start[m], 
+                                  segments$End[r],
+                                  bin_start,
+                                  bin_end,
+                                  ifelse(segments$Direction[r]==1, 'amp', 'del'))
+    } 
+    else {
+      segments_merged[nrow(segments_merged) + 1, ] = list(Chr=as.character(segments$Chr[r]), 
+                                                          Start=segments$Start[r], 
+                                                          End=segments$End[r],
+                                                          Start.i=segments$Start.i[r],
+                                                          End.i=segments$End.i[r],
+                                                          Direction=ifelse(segments$Direction[r]==1, 'amp', 'del'))
+    }
+    m <- nrow(segments_merged)
+  }
 ```
 
 
 \newpage
+## Calculated numerical karyotype:
+```{r transform of bins to giemsa bands and create of digital karyotype, echo = FALSE}
+last_chr = 'NULL'
+direction = 0 
 
-```{r test, echo = FALSE}
-bin_data = read.table("/media/vera/big_data/mr_genoms/pon.marburg.compliete/pon.tsv", header=TRUE, row.names = 1, stringsAsFactors = F)
+bands = data.frame(Chr=character(), Name=character(), Start=integer(), End=integer(),
+                   Sum.pat=integer(), Sum.pon=integer(), Direction=integer(), stringsAsFactors = F)
+for (c in 1:nrow(cytobands)) {
+  sel = as.character(pon$Chr) == as.character(cytobands$Chr[c]) &
+  # fall 1: die bin ist kleiner als die band
+    ((pon$Start >= cytobands$Start[c] & pon$End <= cytobands$End[c]) |
+    # fall 2: die bin ist zwischen 2 bands, liegt aber eher in der betrachteten bin,
+    # weil das ende von der bin naeher zum ende der band liegt, als der
+    # anfang zum anfang der naechsten
+    # die 2. bedingung wurde eingebaut, um zu verhindern, dass die bins vor der aktuellen
+    # band mitselektiert werden
+      ((pon$Start < cytobands$End[c]) &
+        (pon$End > cytobands$Start[c]) &
+        ((cytobands$End[c] - pon$Start) >= (pon$End - cytobands$End[c]))) |
+         # fall 3: die bin ist zwischen 2 bands, liegt aber eher in der
+         # betrachteten bin
+         # weil der anfang von der bin naeher zum anfang der band liegt, als das ende
+         ((pon$Start < cytobands$Start[c]) &
+            ((pon$End - cytobands$Start[c]) > (cytobands$Start[c] - pon$Start))))
+    # fall 4: die band ist kleiner als die bin,
+    # dann greift die bedingung 2 oder 3, je nach werten
+    
+    band.pat = pon[sel, "patient.norm"]
+    band.pon = colSums((pon[sel, grep(".bam", colnames(pon))]), na.rm = TRUE)/1000
+    sum_pat = sum(band.pat, na.rm = TRUE)
+    # summe der werte der bins in dieser band fuer den patienten
+    sum_pon = mean(band.pon, na.rm = TRUE)
+    # mittelwert der summe der bins in dem pon
+    
+    # ????????????????
+    #bands$gauss = apply(c(sum_pat, sum_pon), 1, function(x) ifelse(x[1] == 0, 1, min(pnorm(q=x[1], mean=x[2], sd=x[3], lower.tail=x[1]<x[2]), 1)*2))
+    
+    
+    #sd_bands = sd(band.pon, na.rm = TRUE)/1000
+    # standartabweichung fur die bins in der band
+    
+    if (sum_pat > sum_pon + 0.2*sum_pon) {
+      direction = +1 # die bande ist amp
+    } 
+    else if (sum_pat < sum_pon - 0.2*sum_pon) {
+      direction = -1 # die bande ist del
+    }
+    
+    bands[nrow(bands) + 1, ] = list(as.character(cytobands$Chr[c]),
+                                    as.character(cytobands$Name[c]),
+                                    cytobands$Start[c],
+                                    cytobands$End[c],
+                                    sum_pat,
+                                    sum_pon,
+                                    direction)
+    direction = 0
+  }
+
+  # create a digital karyotype
+  suspected_bands = bands[bands$Direction != 0, ]
+  
+  # color for aberration bands
+  cytobands$Direction = bands$Direction
+  
+  for (b in 1:nrow(cytobands)) {
+    if (cytobands$Direction[b] == 1) {
+      cytobands$Band.type[b] = "band add"
+      cytobands$Color[b] = "darkgreen"
+    }
+    else if (cytobands$Direction[b] == -1) {
+      cytobands$Band.type[b] = "band del"
+      cytobands$Color[b] = "darkred"
+    }
+  }
+  
+  # bands mergen, wie bei den regions, nur ohne statistische validierung
+  suspected_bands$last_Name = suspected_bands$Name
+  karyotype_to_report = suspected_bands[1, ]
+  
+  karyotype_to_report$Aberration = NA
+  if(nrow(suspected_bands) < 2) return(karyotype_to_report)
+  
+  k = 1
+  # der zaehler in der tabelle karyotype_to_report
+  for (s in 2:nrow(suspected_bands)) {
+    if (karyotype_to_report$Chr[k] == suspected_bands$Chr[s] &
+        karyotype_to_report$Direction[k] == suspected_bands$Direction[s] &
+        karyotype_to_report$End[k] == suspected_bands$Start[s]) {
+      karyotype_to_report$last_Name[k] = suspected_bands$Name[s]
+      karyotype_to_report$End[k] = suspected_bands$End[s]
+      next
+    }
+    else {
+      karyotype_to_report[nrow(karyotype_to_report) +1, ] = suspected_bands[s, ]
+      # die bande auf einem neuen chr oder mit einer anderen richtung hinzufuegen
+      k = nrow(karyotype_to_report)
+      # das ist jetzt die bande, von der aus betrachtet wird
+    }
+  }
+  
+  
+  #karyotype to report new function as row karyotype with all aberrations
+#  for (a in 1:nrow(karyotype_to_report)) {
+#    if ((karyotype_to_report$Name[a] == band.borders["Chr" == karyotype_to_report$Chr[a], "Name.start"]) | 
+#        (karyotype_to_report$Name[a] == cytobands[("Chr" == karyotype_to_report$Chr[a]) -1, "Name"])) {
+#      karyotype_to_report$Aberration = as.character(paste0(ifelse(
+#                                                    karyotype_to_report$Direction == 1, "+", "-"), 
+#                                                    karyotype_to_report$Chr))
+#    }
+#    
+#  }
+  
+  
+  
+  
+  
+  
+  #karyotype to report old function as table
+  for (a in 1:nrow(karyotype_to_report)) {
+    karyotype_to_report[a, "Aberration"] = as.character(paste0(karyotype_to_report$Direction[a], "(",
+                                                               suspected_bands$Chr[a], ")(",
+                                                               suspected_bands$Name[a],
+                                                               suspected_bands$last_Name[a], ")"))
+  }
+  
+  karyotype_to_report$Aberration = as.character(paste0(ifelse(karyotype_to_report$Direction == 1, "add", "del"), "(",
+                                                       sub("chr", "", karyotype_to_report$Chr), ")(",
+                                                       karyotype_to_report$Name,
+                                                       karyotype_to_report$last_Name, ")"))
+
+  kable(karyotype_to_report$Aberration, col.names = NULL, align = "l", "html")
 ```
+
+\newpage
+## Genes affected by CNVs\*:
+```{r genes in aberration bins table, echo = FALSE}
+  suspected_bins <- data.frame(Chr=character(), Start=integer(), End=integer(), Bin=integer(),
+                               Aberration=character(), stringsAsFactors = F)
+  # Hier werden alle Bins gespeichert, die von pon_mean +/- 3*SD abweichen
+  g=0
+  for (g in 1:nrow(pon[!pon$gc_blocked & !pon$var_blocked, ])) {
+    if (pon$aberration[g] == 'del') {
+      suspected_bins[nrow(suspected_bins) + 1, ] = list(as.character(pon$Chr[g]), 
+                                                        pon$Start[g], 
+                                                        pon$End[g],
+                                                        pon$patient.norm[g],
+                                                        as.character("del"))
+    }
+    
+    else if (pon$aberration[g] == 'amp') {
+      suspected_bins[nrow(suspected_bins) + 1, ] = list(as.character(pon$Chr[g]), 
+                                                        pon$Start[g], 
+                                                        pon$End[g],
+                                                        pon$patient.norm[g],
+                                                        as.character("amp"))
+    }
+  }
+
+  special_genes = all_genes[all_genes$symbol %in% cancer_genes$genes, ]
+  special_genes$aberration = 'norm'
+  special_genes$found = 0
+  
+  for(i in 1:nrow(special_genes)) {
+      bins = suspected_bins[suspected_bins$Chr == special_genes$chr[i] & (suspected_bins$Start <= special_genes$start[i] & special_genes$start[i] <= suspected_bins$End | 
+             suspected_bins$Start <= special_genes$end[i] & special_genes$end[i] <= suspected_bins$End),]
+    if(nrow(bins) == 0) {next}
+    special_genes$found[i] = 1
+    if(all(bins$Aberration == 'amp')) {special_genes$aberration[i] = 'amp'}
+    if(all(bins$Aberration == 'del')) {special_genes$aberration[i] = 'del'}
+  }
+
+reported_genes = special_genes[special_genes$found == 1 & (special_genes$aberration == "amp" | special_genes$aberration == "del"), ]
+reported_genes$start = format(reported_genes$start, decimal.mark = ",", big.mark = ".", small.mark = " ", small.interval = 3)
+reported_genes$end = format(reported_genes$end, decimal.mark = ",", big.mark = ".", small.mark = " ", small.interval = 3)
+  
+kable(reported_genes[ , 1:6], align = "lllrrl")
+```
+
+> Bailey et al. (2018): Comprehensive Characterization of Cancer Driver Genes and Mutations. Cell 173 (2), 371-385.e18. DOI: 10.1016/j.cell.2018.02.060.;
+
+> Papaemmanuil et al. (2016): Genomic Classification and Prognosis in Acute Myeloid Leukemia. The New England journal of medicine 374 (23), S. 2209–2221. DOI:10.1056/NEJMoa1516192.
+
+\newpage
+## Chromosome Plots:
+
+```{r chromosome plots, echo = FALSE, fig.width=12, fig.height=3}
+chrn = "chr1"
+
+plot_bins_regions_ideogram <- function(pon, cytobands, segments, chrn, sd_factor) {
+
+  x <- pon[pon$Chr == chrn, "Start"]
+  y <- pon[pon$Chr == chrn, "patient.norm"] *pon[pon$Chr == chrn, "ploidy"]
+  plot_patient <- qplot(x, y, ylim = c(-1, 4)) +
+    
+                  geom_line(aes(x = pon[pon$Chr == chrn, "Start"],
+                                y = pon[pon$Chr == chrn, "norm.clean.mean"]
+                                     *pon[pon$Chr == chrn, "ploidy"]),
+                                color = "gray", linetype = "solid") +
+    
+                  geom_errorbar(aes(x = pon[pon$Chr == chrn, "Start"],
+                                    ymin = pon[pon$Chr == chrn, "norm.clean.mean"]
+                                           *pon[pon$Chr == chrn, "ploidy"] - 
+                                    pon[pon$Chr == chrn, "norm.clean.sd"]
+                                     *pon[pon$Chr == chrn, "ploidy"], 
+                                    ymax = pon[pon$Chr == chrn, "norm.clean.mean"]
+                                           *pon[pon$Chr == chrn, "ploidy"] + 
+                                    pon[pon$Chr == chrn, "norm.clean.sd"]
+                                     *pon[pon$Chr == chrn, "ploidy"]),
+                                width=0.1, color = "gray", alpha = 0.9, na.rm = TRUE) +
+
+                  geom_point(aes(x = x, 
+                                 y = pon[pon$Chr == chrn, "patient.norm"]*pon[pon$Chr == chrn, "ploidy"]),
+                                 shape = 19, color = "black", size = 1) +
+    
+    #das eigentliche ideogram
+                  geom_rect(data = cytobands[cytobands$Chr == chrn, ],
+                            stat = "identity", position = "identity",
+                    aes(NULL, NULL, xmin = Start, xmax = End, fill = Band.type),
+                        ymin = -0.6, ymax = -0.2, color = "gray", size = 0.5, alpha = 0.4) +
+    
+                  scale_fill_manual(values=c("acen" = "#2b8cbe", "gneg" = "#f7f7f7",
+                                             "gpos100" = "#252525", "gpos25" = "#cccccc",
+                                             "gpos50" = "#969696", "gpos75" = "#636363",
+                                             "gvar" = "#045a8d", "stalk" = "#be8c2b",
+                                             "amp" = "darkgreen", "del" = "darkred",
+                                             "band add" = "darkgreen", "band del" = "darkred")) +
+    # hier legende fuer die banden einfuehren
+    
+    # die regione einzeichnen
+                  #geom_rect(data = segments[segments$Chr == chrn, ],
+                  #          aes(NULL, NULL, xmin = Start, xmax = End, fill = Direction),
+                  #              ymin = 1,
+                  #              ymax = 3,
+                  #              color = "gray", size = 0.5, alpha = 0.4) +
+    
+                  theme_bw() +
+                  labs(title = chrn, y = "Ploidy") +
+                  scale_x_discrete("Giemsa bands")
+  print(plot_patient)
+  return(plot_patient)
+}
+
+chrn= "chr0"
+  for (chrn in unique(pon$Chr)) {
+    plot_patient = plot_bins_regions_ideogram(pon, cytobands, segments,
+                                              chrn, sd_factor)
+  }
+```
+
+
+```{r Segmentation with HMM, echo = FALSE}
+# Read WIG file input
+
+## Segmention by Hidden Markov Model
+
+#Lai D, Ha G, Shah S (2020). HMMcopy: Copy number prediction with correction for GC and mappability bias for HTS data. R package version 1.32.0. 
+#rfile <- "/home/vera/dissertation/test.report.coriandR/patient.chr8.wig"
+#gfile <- "/home/vera/dissertation/coriandR/genome/gc_hg38_1000kb.chr8.wig"
+#mfile <- "/home/vera/dissertation/coriandR/genome/map_hg38_1000kb.chr8.wig"
+#uncorrected_reads <- wigsToRangedData(rfile, gfile, mfile)
+#corrected_copy <- correctReadcount(uncorrected_reads)
+#corrected_copy <- correctReadcount(uncorrected_reads[!uncorrected_reads$chr %in% c("chrX", "chrY"), ])
+#corrected_copy <- correctReadcount(uncorrected_reads[uncorrected_reads$chr == "chr1", ])
+#segmented_copy <- HMMsegment(corrected_copy)
+#plotBias(corrected_copy)
+#plotCorrection(corrected_copy)
+#plotSegments(corrected_copy, segmented_copy)
+```
+
+
+
+
+
+
+
+
+
+
 
 
 

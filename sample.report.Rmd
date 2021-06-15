@@ -3,7 +3,7 @@ title: "Report CORIANDR: ChrOmosomal abeRration Identifier AND Reporter in R"
 date: "`r format(Sys.time(), '%d-%m-%Y')`"
 output: pdf_document
 params:
-  data: patient
+  data: "samples/test_patient"
 ---
 
 
@@ -33,11 +33,11 @@ if(tolower(patient.meta$gender) %in% c("f", "female")) {
 
 ```{r data definition, echo = FALSE, fig.width=7, fig.height=3}
 # Read patient counts from featureCounts output
-patient = read.table("patient.fc.tsv", header=TRUE, row.names = 1, stringsAsFactors = F)
+patient = read.table(paste0(params$data, ".fc.tsv"), header=TRUE, row.names = 1, stringsAsFactors = F)
 patient = patient[patient$Chr != 'chrM', ]
 
 # Read PON table
-pon = read.table("pon.tsv", header=TRUE, row.names = 1, stringsAsFactors = F)
+pon = read.table(patient.meta$pon, header=TRUE, row.names = 1, stringsAsFactors = F)
 
 # Make PON gender specific for patient and concatenate the data
 if(patient.meta$gender == "f") {
@@ -56,19 +56,19 @@ if(patient.meta$gender == "f") {
 pon$bin = 1:nrow(pon)  # needs recounting after gendering
 
 # Calculate normalized patient counts relative to median sequencing depth and multiply by expected ploidy
-pon$patient.norm = pon$patient / median(pon$patient) * 2 / pon$ploidy
+pon$patient.norm = pon$patient / median(pon$patient)
 
 # Giemsa-bands for plotting
 # The bands table contains the g-bands of the human genome. Cheung VG, Nowak N, Jang W, Kirsch IR, Zhao S, Chen XN, Furey TS, Kim UJ, Kuo WL, Olivier M et al. Integration of cytogenetic landmarks into the draft sequence of the human genome. Nature. 2001 Feb 15;409(6822):953-8. PMID: 11237021
-cytobands = read.table("cytobands.tsv", header=TRUE, sep = "\t", row.names = 1, stringsAsFactors = F)
+cytobands = read.table("tables/cytobands_sort.2.tsv", header=TRUE, sep = "\t", row.names = 1, stringsAsFactors = F)
 #begin and end of giemsa bands for karyotyping
-band.borders = read.table("band.borders.tsv", header=TRUE, sep = "\t", row.names = 1, stringsAsFactors = F)
+band.borders = read.table("tables/band.borders.tsv", header=TRUE, sep = "\t", row.names = 1, stringsAsFactors = F)
 
 # List of relevant cancer genes
-cancer_genes = read.table("cancer_genes.csv", header=TRUE, sep = "\t", stringsAsFactors = F)
+cancer_genes = read.table("tables/cancer.driver.genes_unique.and.goi.aml.csv", header=TRUE, sep = "\t", stringsAsFactors = F)
 
 # List of all genes
-all_genes = read.table("all_genes.tsv", header=TRUE, row.names = 1, stringsAsFactors = F)
+all_genes = read.table("tables/all_genes.tsv", header=TRUE, row.names = 1, stringsAsFactors = F)
 all_genes$start = as.numeric(all_genes$start)
 all_genes$end = as.numeric(all_genes$end)
 
@@ -90,7 +90,7 @@ with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line
 ## Sample characteristics and mapping statistics
 
 ```{r mapping statistics, echo = FALSE}
-stats = data.frame(t(read.table("mapping.stats.tsv", stringsAsFactors = F, row.names=1)))
+stats = data.frame(t(read.table(paste0(params$data, ".stats.tsv"), stringsAsFactors = F, row.names=1)))
 stats$unique_mapping_pairs = round(sum(patient[ , 6]/2))
 
 stats$raw_read_pairs = format(stats$raw_read_pairs, decimal.mark = ",", big.mark = ".", small.mark = " ", small.interval = 3)
@@ -115,7 +115,7 @@ with(pon[!pon$blocked, ],
       hist(patient, breaks=seq(0, max(patient)+20, by=20),
            #xlim=c(0, median(patient)*2),
            freq=F, xlab="Depth per bin", border=T, col="blue", main="")
-      pon.hist = hist(norm.clean.mean*median(patient), breaks=seq(0, max(norm.clean.mean*median(patient)*2,  na.rm=T), by=20), plot=F, xlim = 4* median(patient))
+      pon.hist = hist(norm.clean.median*median(patient), breaks=seq(0, max(norm.clean.median*median(patient)*2,  na.rm=T), by=20), plot=F, xlim = 4* median(patient))
       lines(pon.hist$mids, pon.hist$density, col="red")
       abline(v = c(0.5, 1, 1.5, 2) *median(patient), col='gray', lty=2)
       legend("right", legend="scaled PON", col="red", lty=1, cex=0.8)
@@ -126,26 +126,6 @@ with(pon[!pon$blocked, ],
 This graph shows the distribution of the bins according to the depth of the sequencing. The red curve represents the distribution of the PON scaled to the same depth. Ideally, the histogram and the red curve match completely. If not, this can indicate larger deletions (the first peak decreases) or larger amplifications (the third peak increases). The indications "x1, x2, x3, x4" indicate the number of copies. 
 
 \newpage
-```{r binomial test with p adjustment, echo = FALSE, fig.width=7, fig.height=3}
-pon$rate = with(pon, ifelse(sum > 0, patient/(sum+patient), 0))
-#hist(pon$rate[!pon$blocked], breaks=100, main = "Histogram of PON rate without the blocked bins", xlab = NULL)
-pon.rate = median(pon$rate[!(pon$blocked | pon$rate == 0)])
-#abline(v=c(pon.rate, pon.rate/2*1), col="red")
-# does not show the pon variance
-
-# binomial test with p adjustment according to the benjamin hochberg method 
-pon$binom = apply(pon[, c("patient", "sum", "ploidy")], 1, function(x) ifelse(x[2] > 0, binom.test(x[1], x[2]+x[1], pon.rate/2*x[3])$p.value, 1))
-pon$binom.adjust = p.adjust(pon$binom, method="hochberg")
-
-#par(mar=c(2, 4, 1, 1))
-#plot(pon$bin, pon$patient,
-#     col = ifelse(!pon$blocked & pon$binom.adjust < 0.001, "#ff000011", "#11ff1111"),
-#     pch = 16, xaxt="n", xlab="", las = 1, ylab="ploidy", xaxs="i")
-#abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
-#with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=-.5, cex.axis=0.5, tick=F))
-#with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=-1, cex.axis=0.5, tick=F))
-```
-
 
 ```{r z-test, echo = FALSE, fig.width=7, fig.height=3}
 sd = mean(unlist(pon$norm.clean.sd), na.rm=T)
@@ -155,22 +135,21 @@ pat.dens = density(pon$pat.z, na.rm=T)
 
 plot(seq(from=-10, to=10, by=0.1), dnorm(seq(from=-10, to=10, by=0.1)), type='l', col="gray",
      main="Patient z-values compared to estimated PON distribution", ylab="Density", xlab="z-value", ylim=c(0, max(pat.dens$y)))
-lines(density((pon$norm.clean.mean-1)/sd, na.rm=T), col="blue")
-lines(pat.dens, col="red")
-legend("topright", legend=c("theoretical z-Distribution", "Patient", "scaled PON"), col=c("gray", "red", "blue"), lty=1, cex=0.7)
+#lines(density((pon$norm.clean.mean-1)/sd, na.rm=T), col="blue")
+lines(pat.dens, col="black")
+legend("topright", legend=c("theoretical z-Distribution", "Patient"), col=c("gray", "black"), lty=1, cex=0.7)
   
-pon$gauss = apply(pon[, c("patient.norm", "norm.clean.mean", "norm.clean.sd")], 1, function(x) ifelse(x[1] == 0, 1, min(pnorm(q=x[1], mean=x[2], sd=x[3], lower.tail=x[1]<x[2]), 1)*2))
+pon$gauss = apply(pon[, c("patient.norm", "norm.clean.median", "norm.clean.sd")], 1, function(x) ifelse(x[1] == 0, 1, min(pnorm(q=x[1], mean=x[2], sd=x[3], lower.tail=x[1]<x[2]), 1)*2))
 pon$gauss.adjust = p.adjust(pon$gauss, method="hochberg")
 
 par(mar=c(2, 4, 1, 1))
 with(pon[!pon$blocked, ],
-     plot(bin, patient.norm*ploidy, ylim=c(0, 4),
-          col = ifelse(!pon$blocked & pon$binom.adjust < 0.001, "#ff000011", "#11111111"),
+     plot(bin, patient.norm*2, ylim=c(0, 4),
+          col = ifelse(gauss.adjust < 0.05, "#ff000011", "#11111111"),
           pch = 16, xaxt="n", xlab="", las = 1, ylab="ploidy", xaxs="i")
 )
-with(pon[!pon$blocked & pon$gauss.adjust < 0.01 , ],
-     arrows(bin, norm.clean.mean*ploidy, bin, patient.norm*ploidy,
-            length=0.03, angle=45, code=2, col="#ff000022", lwd=3))
+# with(pon[!pon$blocked & pon$gauss.adjust < 0.01 , ],
+#      arrows(bin, norm.clean.median*2, bin, patient.norm*2, length=0.03, angle=45, code=2, col="#ff000022", lwd=3))
 abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
 with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=-.5, cex.axis=0.5, tick=F))
 with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=-1, cex.axis=0.5, tick=F))

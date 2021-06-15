@@ -1,0 +1,6 @@
+name	sample_patient
+gender	male
+count_data	samples/test_patient.fc.tsv
+mapping_stats	samples/test_patient.stats.tsv
+pon	samples/test_pon.pon.tsv
+output_prefix	output/test_output

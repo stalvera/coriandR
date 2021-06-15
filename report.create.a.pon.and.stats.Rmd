@@ -137,10 +137,13 @@ Gonosomes are shifted to match a ploidy of 2 in males to facilitate comparabilit
 
 ```{r, Plotted over all chromosomes, echo = FALSE, fig.width = 12, fig.height = 5}
 # Normalizing to a ploidity of 2, the PON looks much more straight forward aside from the samples with a second mode at 1 (gonosomes).
+
 pon.norm = pon[, meta$pon.col]
 pon.norm = data.frame(t(t(pon.norm)/apply(pon.norm, 2, median, na.rm=T)))
-pon.norm = data.frame(pon.norm/apply(pon.norm, 1, median, na.rm=T))
-plot(rep(pon$bin, nrow(meta)), c(as.matrix(pon.norm)*pon$ploidy),      #col=rep(gray(1:length(pon.cols)/length(pon.cols), alpha=0.1), each=nrow(pon)),
+pon$norm.median = apply(pon.norm, 1, median, na.rm=T)
+pon$norm.clean.sd = apply(pon.norm, 1, sd, na.rm=T)
+pon.nnorm = data.frame(pon.norm/apply(pon.norm, 1, median, na.rm=T))
+plot(rep(pon$bin, nrow(meta)), c(as.matrix(pon.nnorm)*pon$ploidy),      #col=rep(gray(1:length(pon.cols)/length(pon.cols), alpha=0.1), each=nrow(pon)),
      col ="#11111105", pch = 16, ylim=c(0, 4), yaxs="i",
      xaxt="n", xlab="Chromosomes", las = 1, ylab="Ploidy", xaxs="i")
 abline(v=c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555")

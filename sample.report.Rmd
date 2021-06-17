@@ -498,11 +498,16 @@ kable(reported_genes[ , 1:6], align = "lllrrl")
 ## Chromosome Plots:
 
 ```{r simplePlots, echo = FALSE, fig.width=12, fig.height=3}
+units = c('', '', 'K', 'K', 'K', 'M', 'M', 'M')
 for(i in unique(pon$Chr)) {
   with(pon[pon$Chr == i,], {
     plot(Start, patient.norm/norm.clean.median*2, col=ifelse(blocked, 0, c("black", "green", "red")[aberration]), ylim=c(0,4), xaxt='n', xlab='', ylab='Ploidy', pch=20)
     segments(Start, 2+norm.clean.sd*2, Start, 2-norm.clean.sd*2, col="#aaaaaaaa")
+      mag = floor(log10(max(End)))
+      xmax = floor(max(End)/10^mag)*10^mag
+      axis(1, seq(0, xmax/10^mag)*10^mag, paste0(seq(0, xmax/10^mag)*10^(mag%%3), units[mag-mag%%3], ' bp'), line=2)
   })
+
   mtext(i, side=2, at=-0.75, las=2, cex=1.5)
   abline(h=0:4, lty=3, col="#aaaaaaaa")
   with(cytobands[cytobands$Chr == i, ], {

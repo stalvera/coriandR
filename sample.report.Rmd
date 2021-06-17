@@ -31,7 +31,7 @@ if(tolower(patient.meta$gender) %in% c("f", "female")) {
 ```
 
 
-```{r data definition, echo = FALSE, fig.width=7, fig.height=3}
+```{r data definition, echo = FALSE, fig.width=7, fig.height=3, warning=F}
 # Read patient counts from featureCounts output
 patient = read.table(paste0(params$data, ".fc.tsv"), header=TRUE, row.names = 1, stringsAsFactors = F)
 patient = patient[patient$Chr != 'chrM', ]
@@ -61,6 +61,10 @@ pon$patient.norm = pon$patient / median(pon$patient)
 # Giemsa-bands for plotting
 # The bands table contains the g-bands of the human genome. Cheung VG, Nowak N, Jang W, Kirsch IR, Zhao S, Chen XN, Furey TS, Kim UJ, Kuo WL, Olivier M et al. Integration of cytogenetic landmarks into the draft sequence of the human genome. Nature. 2001 Feb 15;409(6822):953-8. PMID: 11237021
 cytobands = read.table("tables/cytobands_sort.2.tsv", header=TRUE, sep = "\t", row.names = 1, stringsAsFactors = F)
+band_types = data.frame(hue=c(0.6, 1, 1, 1, 1, 1, 0.1, 0.8), saturation=c(1, 0, 0, 0, 0, 0, 1, 1), value=c(1, 1, 0.5, 0.8, 0.7, 0.6, 1, 1), row.names=c("acen", "gneg", "gpos100", "gpos25", "gpos50", "gpos75", "gvar", "stalk"))
+cytobands$hue = band_types[cytobands$Band.type, "hue"]
+cytobands$saturation = band_types[cytobands$Band.type, "saturation"]
+cytobands$value = band_types[cytobands$Band.type, "value"]
 #begin and end of giemsa bands for karyotyping
 band.borders = read.table("tables/band.borders.tsv", header=TRUE, sep = "\t", row.names = 1, stringsAsFactors = F)
 
@@ -133,14 +137,15 @@ pon$pat.z = (pon$patient.norm-1) / sd
 
 pat.dens = density(pon$pat.z, na.rm=T)
 
-plot(seq(from=-10, to=10, by=0.1), dnorm(seq(from=-10, to=10, by=0.1)), type='l', col="gray",
+plot(seq(from=-20, to=20, by=0.1), dnorm(seq(from=-20, to=20, by=0.1)), type='l', col="gray",
      main="Patient z-values compared to estimated PON distribution", ylab="Density", xlab="z-value", ylim=c(0, max(pat.dens$y)))
 #lines(density((pon$norm.clean.mean-1)/sd, na.rm=T), col="blue")
 lines(pat.dens, col="black")
 legend("topright", legend=c("theoretical z-Distribution", "Patient"), col=c("gray", "black"), lty=1, cex=0.7)
   
-pon$gauss = apply(pon[, c("patient.norm", "norm.clean.median", "norm.clean.sd")], 1, function(x) ifelse(x[1] == 0, 1, min(pnorm(q=x[1], mean=x[2], sd=x[3], lower.tail=x[1]<x[2]), 1)*2))
+pon$gauss = apply(pon[, c("patient.norm", "norm.clean.median", "norm.clean.sd")], 1, function(x) ifelse(x[1] == 0, 1, min(pnorm(q=x[1], mean=x[2], sd=x[3], lower.tail=x[1]<x[2])*2, 1)))
 pon$gauss.adjust = p.adjust(pon$gauss, method="hochberg")
+pon$gauss.adjust[is.na(pon$gauss.adjust)] = 1
 
 par(mar=c(2, 4, 1, 1))
 with(pon[!pon$blocked, ],
@@ -157,7 +162,7 @@ with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line
 
 
 ```{r abberation characters, echo = FALSE}
-pon$aberration = with(pon[!pon$gc_blocked & !pon$var_blocked, ], factor(ifelse((pon$patient.norm > pon$norm.clean.mean & pon$binom.adjust < 0.05), 'amp', ifelse((pon$patient.norm < pon$norm.clean.mean & pon$binom.adjust < 0.05), 'del', 'normal')), levels = c('normal', 'amp', 'del')))
+pon$aberration = factor(ifelse((pon$patient.norm > 1.5*pon$norm.clean.median & pon$gauss.adjust < 0.05), 'amp', ifelse((pon$patient.norm < 0.75*pon$norm.clean.median & pon$gauss.adjust < 0.05), 'del', 'normal')), levels = c('normal', 'amp', 'del'))
 ```
 
 ```{r segmentation algorithm, echo = FALSE}
@@ -166,7 +171,7 @@ pon$aberration = with(pon[!pon$gc_blocked & !pon$var_blocked, ], factor(ifelse((
   last_chr = 'NULL'
   last_direction = 0 # 0 for normal, -1 for del, +1 for amp
   segment_start = 0
-  for (i in 1:nrow(pon[!pon$blocked, ])) {
+  for (i in 1:nrow(pon)) {
     if(pon$Chr[i] != last_chr) {
       if(last_chr != 'NULL' & last_direction != 0) {
         segments[nrow(segments) + 1, ] = list(as.character(last_chr), pon$Start[segment_start], 
@@ -298,6 +303,17 @@ segments_merged = data.frame(Chr=character(), Start=integer(), End=integer(), St
 \newpage
 ## Calculated numerical karyotype:
 ```{r transform of bins to giemsa bands and create of digital karyotype, echo = FALSE}
+cytobands$aberration = factor(apply(cytobands, 1, function(x) {
+  bins = pon[pon$Chr == x[1] & pon$Start >= floor(as.integer(x[2])/10^6)*10^6 & pon$End <= ceiling(as.integer(x[3])/10^6)*10^6 & !pon$blocked,]
+  if(nrow(bins) < 1) return("normal")
+  if(sum(bins$aberration == "del")/nrow(bins) > 0.5) return("del")
+  if(sum(bins$aberration == "amp")/nrow(bins) > 0.5) return("amp")
+  return("normal")
+}))
+cytobands$hue[cytobands$aberration == "amp"] = 0.35
+cytobands$saturation[cytobands$aberration == "amp"] = 1
+cytobands$hue[cytobands$aberration == "del"] = 0
+cytobands$saturation[cytobands$aberration == "del"] = 1
 last_chr = 'NULL'
 direction = 0 
 
@@ -436,7 +452,7 @@ for (c in 1:nrow(cytobands)) {
                                Aberration=character(), stringsAsFactors = F)
   # Hier werden alle Bins gespeichert, die von pon_mean +/- 3*SD abweichen
   g=0
-  for (g in 1:nrow(pon[!pon$gc_blocked & !pon$var_blocked, ])) {
+  for (g in 1:nrow(pon[!pon$blocked, ])) {
     if (pon$aberration[g] == 'del') {
       suspected_bins[nrow(suspected_bins) + 1, ] = list(as.character(pon$Chr[g]), 
                                                         pon$Start[g], 
@@ -481,33 +497,44 @@ kable(reported_genes[ , 1:6], align = "lllrrl")
 \newpage
 ## Chromosome Plots:
 
+```{r simplePlots, echo = FALSE, fig.width=12, fig.height=3}
+for(i in unique(pon$Chr)) {
+  with(pon[pon$Chr == i,], {
+    plot(Start, patient.norm/norm.clean.median*2, col=ifelse(blocked, 0, c("black", "green", "red")[aberration]), ylim=c(0,4), xaxt='n', xlab='', ylab='Ploidy', pch=20)
+    segments(Start, 2+norm.clean.sd*2, Start, 2-norm.clean.sd*2, col="#aaaaaaaa")
+  })
+  mtext(i, side=2, at=-0.75, las=2, cex=1.5)
+  abline(h=0:4, lty=3, col="#aaaaaaaa")
+  with(cytobands[cytobands$Chr == i, ], {
+    rect(Start, -.5, End, -1, xpd=T,
+         col=hsv(hue, saturation, value, 0.3))
+  })
+}
+```
+
 ```{r chromosome plots, echo = FALSE, fig.width=12, fig.height=3}
 chrn = "chr1"
 
 plot_bins_regions_ideogram <- function(pon, cytobands, segments, chrn, sd_factor) {
 
   x <- pon[pon$Chr == chrn, "Start"]
-  y <- pon[pon$Chr == chrn, "patient.norm"] *pon[pon$Chr == chrn, "ploidy"]
+  y <- pon[pon$Chr == chrn, "patient.norm"]*2
   plot_patient <- qplot(x, y, ylim = c(-1, 4)) +
     
                   geom_line(aes(x = pon[pon$Chr == chrn, "Start"],
-                                y = pon[pon$Chr == chrn, "norm.clean.mean"]
-                                     *pon[pon$Chr == chrn, "ploidy"]),
+                                y = pon[pon$Chr == chrn, "norm.clean.median"]*2),
                                 color = "gray", linetype = "solid") +
     
                   geom_errorbar(aes(x = pon[pon$Chr == chrn, "Start"],
-                                    ymin = pon[pon$Chr == chrn, "norm.clean.mean"]
+                                    ymin = pon[pon$Chr == chrn, "norm.clean.median"]
                                            *pon[pon$Chr == chrn, "ploidy"] - 
-                                    pon[pon$Chr == chrn, "norm.clean.sd"]
-                                     *pon[pon$Chr == chrn, "ploidy"], 
-                                    ymax = pon[pon$Chr == chrn, "norm.clean.mean"]
-                                           *pon[pon$Chr == chrn, "ploidy"] + 
-                                    pon[pon$Chr == chrn, "norm.clean.sd"]
-                                     *pon[pon$Chr == chrn, "ploidy"]),
+                                    pon[pon$Chr == chrn, "norm.clean.sd"]*2, 
+                                    ymax = pon[pon$Chr == chrn, "norm.clean.median"]*2 + 
+                                    pon[pon$Chr == chrn, "norm.clean.sd"]*2),
                                 width=0.1, color = "gray", alpha = 0.9, na.rm = TRUE) +
 
                   geom_point(aes(x = x, 
-                                 y = pon[pon$Chr == chrn, "patient.norm"]*pon[pon$Chr == chrn, "ploidy"]),
+                                 y = pon[pon$Chr == chrn, "patient.norm"]*2),
                                  shape = 19, color = "black", size = 1) +
     
     #das eigentliche ideogram

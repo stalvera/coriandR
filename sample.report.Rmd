@@ -3,13 +3,12 @@ title: "Report CORIANDR: ChrOmosomal abeRration Identifier AND Reporter in R"
 date: "`r format(Sys.time(), '%d-%m-%Y')`"
 output: pdf_document
 params:
-  data: "samples/test_patient"
+  data: patient
 ---
 
 
 ```{r setup, include=FALSE}
-#knitr::opts_knit$set(root.dir = "/media/vera/big_data/mr_genoms/test.report.coriandR")
-#knitr::opts_knit$set(root.dir = "/home/vera/dissertation/test.report.coriandR")
+#knitr::opts_knit$set(root.dir = "/media/vera/big_data/mr_genoms/test.report.coriandR/")
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 knitr::opts_chunk$set(dev = "png", dev.args = list(type = "cairo-png"))
 
@@ -31,13 +30,13 @@ if(tolower(patient.meta$gender) %in% c("f", "female")) {
 ```
 
 
-```{r data definition, echo = FALSE, fig.width=7, fig.height=3, warning=F}
+```{r data definition, echo = FALSE, fig.width=7, fig.height=3}
 # Read patient counts from featureCounts output
-patient = read.table(paste0(params$data, ".fc.tsv"), header=TRUE, row.names = 1, stringsAsFactors = F)
+patient = read.table(as.character(patient.meta$count_data), header=TRUE, row.names = 1, stringsAsFactors = F)
 patient = patient[patient$Chr != 'chrM', ]
 
 # Read PON table
-pon = read.table(patient.meta$pon, header=TRUE, row.names = 1, stringsAsFactors = F)
+pon = read.table(as.character(patient.meta$pon), header=TRUE, row.names = 1, stringsAsFactors = F)
 
 # Make PON gender specific for patient and concatenate the data
 if(patient.meta$gender == "f") {
@@ -60,19 +59,20 @@ pon$patient.norm = pon$patient / median(pon$patient)
 
 # Giemsa-bands for plotting
 # The bands table contains the g-bands of the human genome. Cheung VG, Nowak N, Jang W, Kirsch IR, Zhao S, Chen XN, Furey TS, Kim UJ, Kuo WL, Olivier M et al. Integration of cytogenetic landmarks into the draft sequence of the human genome. Nature. 2001 Feb 15;409(6822):953-8. PMID: 11237021
-cytobands = read.table("tables/cytobands_sort.2.tsv", header=TRUE, sep = "\t", row.names = 1, stringsAsFactors = F)
+cytobands = read.table("cytobands.tsv", header=TRUE, sep = "\t", row.names = 1, stringsAsFactors = F)
 band_types = data.frame(hue=c(0.6, 1, 1, 1, 1, 1, 0.1, 0.8), saturation=c(1, 0, 0, 0, 0, 0, 1, 1), value=c(1, 1, 0.5, 0.8, 0.7, 0.6, 1, 1), row.names=c("acen", "gneg", "gpos100", "gpos25", "gpos50", "gpos75", "gvar", "stalk"))
 cytobands$hue = band_types[cytobands$Band.type, "hue"]
 cytobands$saturation = band_types[cytobands$Band.type, "saturation"]
 cytobands$value = band_types[cytobands$Band.type, "value"]
+
 #begin and end of giemsa bands for karyotyping
-band.borders = read.table("tables/band.borders.tsv", header=TRUE, sep = "\t", row.names = 1, stringsAsFactors = F)
+#band.borders = read.table("band.borders.tsv", header=TRUE, sep = "\t", row.names = 1, stringsAsFactors = F)
 
 # List of relevant cancer genes
-cancer_genes = read.table("tables/cancer.driver.genes_unique.and.goi.aml.csv", header=TRUE, sep = "\t", stringsAsFactors = F)
+cancer_genes = read.table("cancer_genes.csv", header=TRUE, sep = "\t", stringsAsFactors = F)
 
 # List of all genes
-all_genes = read.table("tables/all_genes.tsv", header=TRUE, row.names = 1, stringsAsFactors = F)
+all_genes = read.table("all_genes.tsv", header=TRUE, row.names = 1, stringsAsFactors = F)
 all_genes$start = as.numeric(all_genes$start)
 all_genes$end = as.numeric(all_genes$end)
 
@@ -87,14 +87,13 @@ plot(pon$bin, pon$patient, ylim = c(0, qnorm(0.999, mean(pon$patient), sd(pon$pa
 abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
 with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=-.5, cex.axis=0.5, tick=F))
 with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=-1, cex.axis=0.5, tick=F))
-
 ```
 
 
 ## Sample characteristics and mapping statistics
 
 ```{r mapping statistics, echo = FALSE}
-stats = data.frame(t(read.table(paste0(params$data, ".stats.tsv"), stringsAsFactors = F, row.names=1)))
+stats = data.frame(t(read.table(as.character(patient.meta$mapping_stats), stringsAsFactors = F, row.names=1)))
 stats$unique_mapping_pairs = round(sum(patient[ , 6]/2))
 
 stats$raw_read_pairs = format(stats$raw_read_pairs, decimal.mark = ",", big.mark = ".", small.mark = " ", small.interval = 3)
@@ -117,9 +116,9 @@ stats$unique_mapping_pairs = format(stats$unique_mapping_pairs, decimal.mark = "
 with(pon[!pon$blocked, ], 
      {
       hist(patient, breaks=seq(0, max(patient)+20, by=20),
-           #xlim=c(0, median(patient)*2),
+           xlim=c(0, median(patient)*2),
            freq=F, xlab="Depth per bin", border=T, col="blue", main="")
-      pon.hist = hist(norm.clean.median*median(patient), breaks=seq(0, max(norm.clean.median*median(patient)*2,  na.rm=T), by=20), plot=F, xlim = 4* median(patient))
+      pon.hist = hist(norm.clean.median*median(patient), breaks=seq(0, max(norm.clean.median*median(patient)*2,  na.rm=T), by=20), plot=F)
       lines(pon.hist$mids, pon.hist$density, col="red")
       abline(v = c(0.5, 1, 1.5, 2) *median(patient), col='gray', lty=2)
       legend("right", legend="scaled PON", col="red", lty=1, cex=0.8)
@@ -131,12 +130,10 @@ This graph shows the distribution of the bins according to the depth of the sequ
 
 \newpage
 
-```{r z-test, echo = FALSE, fig.width=7, fig.height=3}
+```{r gauss-test, echo = FALSE, fig.width=7, fig.height=3}
 sd = mean(unlist(pon$norm.clean.sd), na.rm=T)
 pon$pat.z = (pon$patient.norm-1) / sd
-
 pat.dens = density(pon$pat.z, na.rm=T)
-
 plot(seq(from=-20, to=20, by=0.1), dnorm(seq(from=-20, to=20, by=0.1)), type='l', col="gray",
      main="Patient z-values compared to estimated PON distribution", ylab="Density", xlab="z-value", ylim=c(0, max(pat.dens$y)))
 #lines(density((pon$norm.clean.mean-1)/sd, na.rm=T), col="blue")
@@ -146,7 +143,6 @@ legend("topright", legend=c("theoretical z-Distribution", "Patient"), col=c("gra
 pon$gauss = apply(pon[, c("patient.norm", "norm.clean.median", "norm.clean.sd")], 1, function(x) ifelse(x[1] == 0, 1, min(pnorm(q=x[1], mean=x[2], sd=x[3], lower.tail=x[1]<x[2])*2, 1)))
 pon$gauss.adjust = p.adjust(pon$gauss, method="hochberg")
 pon$gauss.adjust[is.na(pon$gauss.adjust)] = 1
-
 par(mar=c(2, 4, 1, 1))
 with(pon[!pon$blocked, ],
      plot(bin, patient.norm*2, ylim=c(0, 4),
@@ -162,145 +158,11 @@ with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line
 
 
 ```{r abberation characters, echo = FALSE}
-pon$aberration = factor(ifelse((pon$patient.norm > 1.5*pon$norm.clean.median & pon$gauss.adjust < 0.05), 'amp', ifelse((pon$patient.norm < 0.75*pon$norm.clean.median & pon$gauss.adjust < 0.05), 'del', 'normal')), levels = c('normal', 'amp', 'del'))
+pon$aberration = factor(ifelse((pon$patient.norm > 1.5 *pon$norm.clean.median & pon$gauss.adjust < 0.05), 'amp', ifelse((pon$patient.norm < 0.75 *pon$norm.clean.median & pon$gauss.adjust < 0.05), 'del', 'normal')), levels = c('normal', 'amp', 'del'))
 ```
-
-```{r segmentation algorithm, echo = FALSE}
-  segments = data.frame(Chr=character(), Start=integer(), End=integer(), Start.i=integer(), 
-                        End.i=integer(), Direction=integer(), stringsAsFactors = F)
-  last_chr = 'NULL'
-  last_direction = 0 # 0 for normal, -1 for del, +1 for amp
-  segment_start = 0
-  for (i in 1:nrow(pon)) {
-    if(pon$Chr[i] != last_chr) {
-      if(last_chr != 'NULL' & last_direction != 0) {
-        segments[nrow(segments) + 1, ] = list(as.character(last_chr), pon$Start[segment_start], 
-                                            pon$End[i-1], segment_start, i, last_direction)
-        #a segment is closed if a another segment was still open at the end of a chromosome 
-      }
-      last_direction = 0
-      segment_start = 0
-      last_chr = pon$Chr[i]
-    }
-
-    direction = 0
-    if(pon$aberration[i] == 'del') {
-      direction = -1
-    } else if(pon$aberration[i] == 'amp') {
-      direction = +1
-    }
-    if (direction == last_direction) {
-      next()
-    }
-    if (direction > last_direction) {
-      if (last_direction == 0) {
-        segment_start = i
-        # new del or amp segmnet is opened 
-      }
-      else if (last_direction == -1) {
-        segments[nrow(segments) + 1, ] = list(as.character(pon$Chr[i]), pon$Start[segment_start], 
-                                            pon$End[i-1], segment_start, i-1, last_direction)
-        # old del segment is closed
-        if (direction == 1) {
-          segment_start = i
-          # new amp segmnet is opened
-        }
-      }
-    } 
-    else if (direction < last_direction) {
-      if (last_direction == 0) {
-        segment_start = i
-        # new del segmnet is opened
-      }
-      else if (last_direction == 1) {
-        segments[nrow(segments) + 1, ] = list(as.character(pon$Chr[i]), pon$Start[segment_start], 
-                                            pon$End[i-1], segment_start, i-1, last_direction)
-        # old amp segment is closed
-        if (direction == -1) {
-          segment_start = i
-          # new del segmnet is opened
-        }
-      }
-    }
-    last_direction = direction
-  }
-    if(last_direction != 0) {
-      segments[nrow(segments) + 1, ] = list(as.character(pon$Chr[i]), pon$Start[segment_start], 
-                                        pon$End[i-1], segment_start, i, last_direction)
-      #a segment is closed if a segment was still open at the end of a very last chromosome
-    }
-```
-
-
-```{r segments merge algorithm, echo = FALSE}
-#??????????????????????????????????????
-#verifizierung zur zusammenfassung der segmente?
-#p-wert fuer dieses segment?
-#??????????????????????????????????????
-
-segments_merged = data.frame(Chr=character(), Start=integer(), End=integer(), Start.i=integer(), 
-                               End.i=integer(), Direction=factor(levels=c('amp', 'del')),
-                               stringsAsFactors = F)
-  
-  if(nrow(segments) < 2) return(segments_merged)
-  
-  segments_merged[1,] = list(as.character(segments$Chr[1]), 
-                             segments$Start[1], 
-                             segments$End[1],
-                             segments$Start.i[1],
-                             segments$End.i[1],
-                             ifelse(segments$Direction[1] == 1, 'amp', 'del'))
-  m = 1 #der zaehler in der tabelle "regions_merged"
-  mean_segment = 0
-  mean_pon = 0
-  #p_pon = 0
-  
-  for (r in 2:nrow(segments)) {
-    if (segments_merged$Chr[m] != segments$Chr[r] | segments_merged$Direction[m] != segments$Direction[r]) {
-      # mergen nur, wenn auf dem selben chr oder bei der gleichen ausrichtung
-      segments_merged[nrow(segments_merged) + 1, ] = list(Chr=as.character(segments$Chr[r]), 
-                                                          Start=segments$Start[r], 
-                                                          End=segments$End[r],
-                                                          Start.i=segments$Start.i[r],
-                                                          End.i=segments$End.i[r],
-                                                          Direction=ifelse(segments$Direction[r] == 1, 'amp', 'del'))
-      # die region auf einem neuen chr oder mit einer anderen richtung zu der neuen tabelle hinzufuegen
-      m = nrow(segments_merged)
-      # das ist die region, von der aus betrachtet wird
-      next
-    }
-    bin_start = segments_merged$Start.i[m]
-    bin_end = segments$End.i[r]
-    
-    mean_segment = mean(c(pon$patient.norm[bin_start]:pon$patient.norm[bin_end]), na.rm = TRUE)
-    mean_pon = mean(c(pon$norm.clean.mean[bin_start:bin_end]), na.rm = TRUE)
-    #die mittelwerte der betroffenen bins inkl. "normale" chr.abschnitte bei dem patienten und pon
-    #p_pon <- mean(bin_data$sd[bin_start:bin_end])
-    
-    #?????????????????????????????????
-    if (mean_segment > mean_pon | mean_region < mean_pon ) {
-      # wenn die mittelwerte der betroffenen bins immer noch signifikant hoch/runter sind -> mergen
-      segments_merged[m, ] = list(as.character(segments$Chr[r]), 
-                                  segments_merged$Start[m], 
-                                  segments$End[r],
-                                  bin_start,
-                                  bin_end,
-                                  ifelse(segments$Direction[r]==1, 'amp', 'del'))
-    } 
-    else {
-      segments_merged[nrow(segments_merged) + 1, ] = list(Chr=as.character(segments$Chr[r]), 
-                                                          Start=segments$Start[r], 
-                                                          End=segments$End[r],
-                                                          Start.i=segments$Start.i[r],
-                                                          End.i=segments$End.i[r],
-                                                          Direction=ifelse(segments$Direction[r]==1, 'amp', 'del'))
-    }
-    m <- nrow(segments_merged)
-  }
-```
-
 
 \newpage
+
 ## Calculated numerical karyotype:
 ```{r transform of bins to giemsa bands and create of digital karyotype, echo = FALSE}
 cytobands$aberration = factor(apply(cytobands, 1, function(x) {
@@ -310,179 +172,68 @@ cytobands$aberration = factor(apply(cytobands, 1, function(x) {
   if(sum(bins$aberration == "amp")/nrow(bins) > 0.5) return("amp")
   return("normal")
 }))
+
 cytobands$hue[cytobands$aberration == "amp"] = 0.35
 cytobands$saturation[cytobands$aberration == "amp"] = 1
 cytobands$hue[cytobands$aberration == "del"] = 0
 cytobands$saturation[cytobands$aberration == "del"] = 1
-last_chr = 'NULL'
-direction = 0 
 
-bands = data.frame(Chr=character(), Name=character(), Start=integer(), End=integer(),
-                   Sum.pat=integer(), Sum.pon=integer(), Direction=integer(), stringsAsFactors = F)
-for (c in 1:nrow(cytobands)) {
-  sel = as.character(pon$Chr) == as.character(cytobands$Chr[c]) &
-  # fall 1: die bin ist kleiner als die band
-    ((pon$Start >= cytobands$Start[c] & pon$End <= cytobands$End[c]) |
-    # fall 2: die bin ist zwischen 2 bands, liegt aber eher in der betrachteten bin,
-    # weil das ende von der bin naeher zum ende der band liegt, als der
-    # anfang zum anfang der naechsten
-    # die 2. bedingung wurde eingebaut, um zu verhindern, dass die bins vor der aktuellen
-    # band mitselektiert werden
-      ((pon$Start < cytobands$End[c]) &
-        (pon$End > cytobands$Start[c]) &
-        ((cytobands$End[c] - pon$Start) >= (pon$End - cytobands$End[c]))) |
-         # fall 3: die bin ist zwischen 2 bands, liegt aber eher in der
-         # betrachteten bin
-         # weil der anfang von der bin naeher zum anfang der band liegt, als das ende
-         ((pon$Start < cytobands$Start[c]) &
-            ((pon$End - cytobands$Start[c]) > (cytobands$Start[c] - pon$Start))))
-    # fall 4: die band ist kleiner als die bin,
-    # dann greift die bedingung 2 oder 3, je nach werten
-    
-    band.pat = pon[sel, "patient.norm"]
-    band.pon = colSums((pon[sel, grep(".bam", colnames(pon))]), na.rm = TRUE)/1000
-    sum_pat = sum(band.pat, na.rm = TRUE)
-    # summe der werte der bins in dieser band fuer den patienten
-    sum_pon = mean(band.pon, na.rm = TRUE)
-    # mittelwert der summe der bins in dem pon
-    
-    # ????????????????
-    #bands$gauss = apply(c(sum_pat, sum_pon), 1, function(x) ifelse(x[1] == 0, 1, min(pnorm(q=x[1], mean=x[2], sd=x[3], lower.tail=x[1]<x[2]), 1)*2))
-    
-    
-    #sd_bands = sd(band.pon, na.rm = TRUE)/1000
-    # standartabweichung fur die bins in der band
-    
-    if (sum_pat > sum_pon + 0.2*sum_pon) {
-      direction = +1 # die bande ist amp
-    } 
-    else if (sum_pat < sum_pon - 0.2*sum_pon) {
-      direction = -1 # die bande ist del
-    }
-    
-    bands[nrow(bands) + 1, ] = list(as.character(cytobands$Chr[c]),
-                                    as.character(cytobands$Name[c]),
-                                    cytobands$Start[c],
-                                    cytobands$End[c],
-                                    sum_pat,
-                                    sum_pon,
-                                    direction)
-    direction = 0
-  }
+cytobands$Band.type[cytobands$aberration == "amp"] = "band add"
+cytobands$Color[cytobands$aberration == "amp"] = "darkgreen"
 
-  # create a digital karyotype
-  suspected_bands = bands[bands$Direction != 0, ]
-  
-  # color for aberration bands
-  cytobands$Direction = bands$Direction
-  
-  for (b in 1:nrow(cytobands)) {
-    if (cytobands$Direction[b] == 1) {
-      cytobands$Band.type[b] = "band add"
-      cytobands$Color[b] = "darkgreen"
+cytobands$Band.type[cytobands$aberration == "del"] = "band del"
+cytobands$Color[cytobands$aberration == "del"] = "darkred"
+
+# bands merging
+abnorm.bands = cytobands[cytobands$aberration != "normal", ]
+karyotype_to_report = abnorm.bands[1, ]
+if(nrow(abnorm.bands) < 2) return(karyotype_to_report)
+
+k = 1
+# the counter in table karyotype_to_report
+for (s in 2:nrow(abnorm.bands)) {
+  if (karyotype_to_report$Chr[k] == abnorm.bands$Chr[s] &
+      karyotype_to_report$aberration[k] == abnorm.bands$aberration[s] &
+      karyotype_to_report$End[k] == abnorm.bands$Start[s]) 
+    { karyotype_to_report$last_Name[k] = abnorm.bands$Name[s]
+      karyotype_to_report$End[k] = abnorm.bands$End[s]
+      next 
     }
-    else if (cytobands$Direction[b] == -1) {
-      cytobands$Band.type[b] = "band del"
-      cytobands$Color[b] = "darkred"
-    }
+  else {
+    karyotype_to_report[nrow(karyotype_to_report) +1, ] = abnorm.bands[s, ]
+     # die bande auf einem neuen chr oder mit einer anderen richtung hinzufuegen
+     k = nrow(karyotype_to_report)
+     # das ist jetzt die bande, von der aus betrachtet wird
   }
-  
-  # bands mergen, wie bei den regions, nur ohne statistische validierung
-  suspected_bands$last_Name = suspected_bands$Name
-  karyotype_to_report = suspected_bands[1, ]
-  
-  karyotype_to_report$Aberration = NA
-  if(nrow(suspected_bands) < 2) return(karyotype_to_report)
-  
-  k = 1
-  # der zaehler in der tabelle karyotype_to_report
-  for (s in 2:nrow(suspected_bands)) {
-    if (karyotype_to_report$Chr[k] == suspected_bands$Chr[s] &
-        karyotype_to_report$Direction[k] == suspected_bands$Direction[s] &
-        karyotype_to_report$End[k] == suspected_bands$Start[s]) {
-      karyotype_to_report$last_Name[k] = suspected_bands$Name[s]
-      karyotype_to_report$End[k] = suspected_bands$End[s]
-      next
-    }
-    else {
-      karyotype_to_report[nrow(karyotype_to_report) +1, ] = suspected_bands[s, ]
-      # die bande auf einem neuen chr oder mit einer anderen richtung hinzufuegen
-      k = nrow(karyotype_to_report)
-      # das ist jetzt die bande, von der aus betrachtet wird
-    }
-  }
-  
-  
-  #karyotype to report new function as row karyotype with all aberrations
-#  for (a in 1:nrow(karyotype_to_report)) {
-#    if ((karyotype_to_report$Name[a] == band.borders["Chr" == karyotype_to_report$Chr[a], "Name.start"]) | 
-#        (karyotype_to_report$Name[a] == cytobands[("Chr" == karyotype_to_report$Chr[a]) -1, "Name"])) {
-#      karyotype_to_report$Aberration = as.character(paste0(ifelse(
-#                                                    karyotype_to_report$Direction == 1, "+", "-"), 
-#                                                    karyotype_to_report$Chr))
-#    }
-#    
-#  }
-  
-  
-  
-  
-  
-  
-  #karyotype to report old function as table
-  for (a in 1:nrow(karyotype_to_report)) {
-    karyotype_to_report[a, "Aberration"] = as.character(paste0(karyotype_to_report$Direction[a], "(",
-                                                               suspected_bands$Chr[a], ")(",
-                                                               suspected_bands$Name[a],
-                                                               suspected_bands$last_Name[a], ")"))
-  }
-  
-  karyotype_to_report$Aberration = as.character(paste0(ifelse(karyotype_to_report$Direction == 1, "add", "del"), "(",
+ }
+
+karyotype_to_report$karyotype = as.character(paste0(karyotype_to_report$aberration, "(",
                                                        sub("chr", "", karyotype_to_report$Chr), ")(",
                                                        karyotype_to_report$Name,
                                                        karyotype_to_report$last_Name, ")"))
 
-  kable(karyotype_to_report$Aberration, col.names = NULL, align = "l", "html")
+kable(karyotype_to_report$karyotype, col.names = NULL, align = "l", "html")
 ```
+
+
 
 \newpage
 ## Genes affected by CNVs\*:
 ```{r genes in aberration bins table, echo = FALSE}
-  suspected_bins <- data.frame(Chr=character(), Start=integer(), End=integer(), Bin=integer(),
-                               Aberration=character(), stringsAsFactors = F)
-  # Hier werden alle Bins gespeichert, die von pon_mean +/- 3*SD abweichen
-  g=0
-  for (g in 1:nrow(pon[!pon$blocked, ])) {
-    if (pon$aberration[g] == 'del') {
-      suspected_bins[nrow(suspected_bins) + 1, ] = list(as.character(pon$Chr[g]), 
-                                                        pon$Start[g], 
-                                                        pon$End[g],
-                                                        pon$patient.norm[g],
-                                                        as.character("del"))
-    }
-    
-    else if (pon$aberration[g] == 'amp') {
-      suspected_bins[nrow(suspected_bins) + 1, ] = list(as.character(pon$Chr[g]), 
-                                                        pon$Start[g], 
-                                                        pon$End[g],
-                                                        pon$patient.norm[g],
-                                                        as.character("amp"))
-    }
-  }
-
   special_genes = all_genes[all_genes$symbol %in% cancer_genes$genes, ]
   special_genes$aberration = 'norm'
   special_genes$found = 0
   
   for(i in 1:nrow(special_genes)) {
-      bins = suspected_bins[suspected_bins$Chr == special_genes$chr[i] & (suspected_bins$Start <= special_genes$start[i] & special_genes$start[i] <= suspected_bins$End | 
-             suspected_bins$Start <= special_genes$end[i] & special_genes$end[i] <= suspected_bins$End),]
-    if(nrow(bins) == 0) {next}
+    genes.in.bin = pon[(pon$aberration != "normal" & pon$Chr == special_genes$chr[i] & pon$Start <= special_genes$start[i] & special_genes$start[i] <= pon$End) |
+                       (pon$aberration != "normal" & pon$Chr == special_genes$chr[i] & pon$Start <= special_genes$end[i] & special_genes$end[i] <= pon$End), ]
+    
+    if(nrow(genes.in.bin) == 0) {next}
     special_genes$found[i] = 1
-    if(all(bins$Aberration == 'amp')) {special_genes$aberration[i] = 'amp'}
-    if(all(bins$Aberration == 'del')) {special_genes$aberration[i] = 'del'}
+    if(all(genes.in.bin$aberration == 'amp')) {special_genes$aberration[i] = 'amp'}
+    if(all(genes.in.bin$aberration == 'del')) {special_genes$aberration[i] = 'del'}
   }
-
+  
 reported_genes = special_genes[special_genes$found == 1 & (special_genes$aberration == "amp" | special_genes$aberration == "del"), ]
 reported_genes$start = format(reported_genes$start, decimal.mark = ",", big.mark = ".", small.mark = " ", small.interval = 3)
 reported_genes$end = format(reported_genes$end, decimal.mark = ",", big.mark = ".", small.mark = " ", small.interval = 3)
@@ -501,26 +252,27 @@ kable(reported_genes[ , 1:6], align = "lllrrl")
 units = c('', '', 'K', 'K', 'K', 'M', 'M', 'M')
 for(i in unique(pon$Chr)) {
   with(pon[pon$Chr == i,], {
-    plot(Start, patient.norm/norm.clean.median*2, col=ifelse(blocked, 0, c("black", "green", "red")[aberration]), ylim=c(0,4), xaxt='n', xlab='', ylab='Ploidy', pch=20)
+    plot(Start, patient.norm/norm.clean.median *2, col = ifelse(blocked, 0, c("black", "green", "red")[aberration]), ylim=c(0,4), xaxt='n', xlab='', ylab='Ploidy', pch=20)
     segments(Start, 2+norm.clean.sd*2, Start, 2-norm.clean.sd*2, col="#aaaaaaaa")
       mag = floor(log10(max(End)))
       xmax = floor(max(End)/10^mag)*10^mag
       axis(1, seq(0, xmax/10^mag)*10^mag, paste0(seq(0, xmax/10^mag)*10^(mag%%3), units[mag-mag%%3], ' bp'), line=2)
   })
-
   mtext(i, side=2, at=-0.75, las=2, cex=1.5)
   abline(h=0:4, lty=3, col="#aaaaaaaa")
   with(cytobands[cytobands$Chr == i, ], {
     rect(Start, -.5, End, -1, xpd=T,
-         col=hsv(hue, saturation, value, 0.3))
+         col=hsv(hue, saturation, value, 0.3)
+         )
   })
 }
 ```
 
-```{r chromosome plots, echo = FALSE, fig.width=12, fig.height=3}
-chrn = "chr1"
 
-plot_bins_regions_ideogram <- function(pon, cytobands, segments, chrn, sd_factor) {
+\newpage
+
+```{r chromosome plots, echo = FALSE, fig.width=12, fig.height=3}
+plot_bins_regions_ideogram <- function(pon, cytobands, segments, chrn) {
 
   x <- pon[pon$Chr == chrn, "Start"]
   y <- pon[pon$Chr == chrn, "patient.norm"]*2
@@ -537,16 +289,15 @@ plot_bins_regions_ideogram <- function(pon, cytobands, segments, chrn, sd_factor
                                     ymax = pon[pon$Chr == chrn, "norm.clean.median"]*2 + 
                                     pon[pon$Chr == chrn, "norm.clean.sd"]*2),
                                 width=0.1, color = "gray", alpha = 0.9, na.rm = TRUE) +
-
                   geom_point(aes(x = x, 
                                  y = pon[pon$Chr == chrn, "patient.norm"]*2),
                                  shape = 19, color = "black", size = 1) +
     
-    #das eigentliche ideogram
+                  #das eigentliche ideogram
                   geom_rect(data = cytobands[cytobands$Chr == chrn, ],
                             stat = "identity", position = "identity",
-                    aes(NULL, NULL, xmin = Start, xmax = End, fill = Band.type),
-                        ymin = -0.6, ymax = -0.2, color = "gray", size = 0.5, alpha = 0.4) +
+                            aes(NULL, NULL, xmin = Start, xmax = End, fill = Band.type),
+                            ymin = -0.6, ymax = -0.2, color = "gray", size = 0.5, alpha = 0.4) +
     
                   scale_fill_manual(values=c("acen" = "#2b8cbe", "gneg" = "#f7f7f7",
                                              "gpos100" = "#252525", "gpos25" = "#cccccc",
@@ -554,14 +305,8 @@ plot_bins_regions_ideogram <- function(pon, cytobands, segments, chrn, sd_factor
                                              "gvar" = "#045a8d", "stalk" = "#be8c2b",
                                              "amp" = "darkgreen", "del" = "darkred",
                                              "band add" = "darkgreen", "band del" = "darkred")) +
-    # hier legende fuer die banden einfuehren
     
-    # die regione einzeichnen
-                  #geom_rect(data = segments[segments$Chr == chrn, ],
-                  #          aes(NULL, NULL, xmin = Start, xmax = End, fill = Direction),
-                  #              ymin = 1,
-                  #              ymax = 3,
-                  #              color = "gray", size = 0.5, alpha = 0.4) +
+                  # hier legende fuer die banden einfuehren
     
                   theme_bw() +
                   labs(title = chrn, y = "Ploidy") +
@@ -570,43 +315,16 @@ plot_bins_regions_ideogram <- function(pon, cytobands, segments, chrn, sd_factor
   return(plot_patient)
 }
 
+
 chrn= "chr0"
   for (chrn in unique(pon$Chr)) {
     plot_patient = plot_bins_regions_ideogram(pon, cytobands, segments,
-                                              chrn, sd_factor)
+                                              chrn)
   }
 ```
 
 
-```{r Segmentation with HMM, echo = FALSE}
-# Read WIG file input
+The legend contains characteristics to Giemsa stain results. Recognized stain values: gneg, gpos50, gpos75, gpos25, gpos100, acen, gvar, stalk.
 
-## Segmention by Hidden Markov Model
-
-#Lai D, Ha G, Shah S (2020). HMMcopy: Copy number prediction with correction for GC and mappability bias for HTS data. R package version 1.32.0. 
-#rfile <- "/home/vera/dissertation/test.report.coriandR/patient.chr8.wig"
-#gfile <- "/home/vera/dissertation/coriandR/genome/gc_hg38_1000kb.chr8.wig"
-#mfile <- "/home/vera/dissertation/coriandR/genome/map_hg38_1000kb.chr8.wig"
-#uncorrected_reads <- wigsToRangedData(rfile, gfile, mfile)
-#corrected_copy <- correctReadcount(uncorrected_reads)
-#corrected_copy <- correctReadcount(uncorrected_reads[!uncorrected_reads$chr %in% c("chrX", "chrY"), ])
-#corrected_copy <- correctReadcount(uncorrected_reads[uncorrected_reads$chr == "chr1", ])
-#segmented_copy <- HMMsegment(corrected_copy)
-#plotBias(corrected_copy)
-#plotCorrection(corrected_copy)
-#plotSegments(corrected_copy, segmented_copy)
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
+> Cheung VG, Nowak N, Jang W, Kirsch IR, Zhao S, Chen XN, Furey TS, Kim UJ, Kuo WL, Olivier M et al. Integration of cytogenetic landmarks into the draft sequence of the human genome. Nature. 2001 Feb 15;409(6822):953-8. PMID: 11237021
 

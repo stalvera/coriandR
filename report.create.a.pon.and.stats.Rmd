@@ -4,7 +4,7 @@ subtitle: "Report"
 date: "`r format(Sys.time(), '%d-%m-%Y')`"
 output: pdf_document
 params:
-  pon_name: "samples/test_pon"
+  pon_name: pon
 ---
 
 # Generating PON: "`r params$pon_name`"
@@ -49,7 +49,7 @@ if(any(is.na(meta$pon.col))) {
 names(pon)[meta$pon.col] = meta$sample
 
 # GC-content calculated by bedtools
-gc = read.table("genome/GRCh38.p13.genome.1M.nucl", stringsAsFactors = T)
+gc = read.table("GRCh38.p13.genome.1M.nucl", stringsAsFactors = T)
 pon$gc = gc[gc$V1 != 'chrM', 5]
 ```
 
@@ -103,7 +103,7 @@ ponYm[, meta$sample[meta$gender != "M"]] = NA
 pon$gender = "neutral"
 
 pon = rbind(pon[!pon$Chr %in% c("chrX", "chrY"), ], ponXf, ponXm, ponYm)
-
+  
 pon$gender = factor(pon$gender)
 
 pon$bin = 1:nrow(pon)  # plain number all bins
@@ -120,8 +120,8 @@ contigs = contigs[order(as.numeric(contigs$chr)),]
 pon$sum = rowSums(pon[, meta$pon.col], na.rm=T)
 pon$mean = rowMeans(pon[, meta$pon.col], na.rm=T)
 plot(pon$bin, pon$mean, ylim = c(0, qnorm(0.999, mean(pon$mean), sd(pon$mean))),
-     col = "#11111111",
-     pch = 16, xaxt="n", xlab="", las = 1, ylab="avg. read depth", xaxs="i")
+     col = "#11111111", pch = 16, 
+     xaxt="n", xlab="", las = 1, ylab="avg. read depth", xaxs="i")
 abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
 with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=1, cex=0.5, tick=F))
 with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=0, cex=0.5, tick=F))
@@ -137,13 +137,13 @@ Gonosomes are shifted to match a ploidy of 2 in males to facilitate comparabilit
 
 ```{r, Plotted over all chromosomes, echo = FALSE, fig.width = 12, fig.height = 5}
 # Normalizing to a ploidity of 2, the PON looks much more straight forward aside from the samples with a second mode at 1 (gonosomes).
-
 pon.norm = pon[, meta$pon.col]
 pon.norm = data.frame(t(t(pon.norm)/apply(pon.norm, 2, median, na.rm=T)))
 pon$norm.median = apply(pon.norm, 1, median, na.rm=T)
 pon$norm.sd = apply(pon.norm, 1, sd, na.rm=T)
 pon.nnorm = data.frame(pon.norm/apply(pon.norm, 1, median, na.rm=T))
-plot(rep(pon$bin, nrow(meta)), c(as.matrix(pon.nnorm)*pon$ploidy),      #col=rep(gray(1:length(pon.cols)/length(pon.cols), alpha=0.1), each=nrow(pon)),
+
+plot(rep(pon$bin, nrow(meta)), c(as.matrix(pon.nnorm)*pon$ploidy),      
      col ="#11111105", pch = 16, ylim=c(0, 4), yaxs="i",
      xaxt="n", xlab="Chromosomes", las = 1, ylab="Ploidy", xaxs="i")
 abline(v=c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555")
@@ -170,6 +170,7 @@ Quinlan A. R. (2014). BEDTools: The Swiss-Army Tool for Genome Feature Analysis.
 pon$nnorm.var = c(apply(pon.nnorm, 1, var, na.rm=T))
 pon$gc_blocked = pon$gc < qnorm(0.275, mean(pon$gc, na.rm=T), sd(pon$gc, na.rm=T))
 par(mfrow=c(1,2))
+
 plot(pon$gc, pon$nnorm.var, pch=20, ylim=c(0.0001, 0.2), xlim=c(0.25, 0.6),
      col=ifelse(pon$gc_blocked, "tomato3", "#11111111"),
      xlab="GC-content", ylab="Variance", las = 1, cex = 0.5)
@@ -177,6 +178,7 @@ points(rep(0.25, sum(pon$gc < 0.25)), pon$nnorm.var[pon$gc < 0.25], pch="<", col
 points(pon$gc[!is.na(pon$nnorm.var) & pon$nnorm.var > 0.2], rep(0.2, sum(!is.na(pon$nnorm.var) & pon$nnorm.var > 0.2)), pch="^", col=ifelse(pon$gc_blocked, "tomato3", "#11111122")[!is.na(pon$nnorm.var) & pon$nnorm.var > 0.2])
 gc.var = predict(loess(nnorm.var ~ gc, pon[pon$gc > 0.35 & pon$gc < 0.6,], span=0.5), 350:600/1000)
 lines(350:600/1000, gc.var, col="blue")
+
 plot(rep(pon$gc, ncol(pon.norm)), c(as.matrix(pon.norm)*pon$ploidy), pch=20, xlim=c(0.25, 0.6), ylim=c(0, 4),
      col = ifelse(pon$gc_blocked, "tomato3", "#11111111"),
      xlab="GC-content", ylab="Ploidy", las = 1, cex = 0.5)
@@ -213,7 +215,8 @@ segments(c(0, 0, min(pon$bin[pon$Chr == "chrX_M"]), min(pon$bin[pon$Chr == "chrX
 axis(4, 0:4, 0:4, las=2)
 ```
 
-```{r, echo = FALSE, fig.width = 12, fig.height = 5, warning=F}
+
+```{r, Overview blocked bins, echo = FALSE, fig.width = 12, fig.height = 5, warning=F}
 plot(pon$bin, pon$norm.clean.median*2,
      col=ifelse(pon$gc_blocked, ifelse(pon$var_blocked, "#aa33aa55", "#aa331155"), ifelse(pon$var_blocked, "#1133aa55", "#11111105")),
      ylim=c(0, 4), yaxs="i", pch=16,
@@ -261,5 +264,4 @@ axis(4, 0:4, 0:4, las=2)
 
 ```{r, save the PON table, echo = FALSE}
 write.table(pon, file = paste0(params$pon_name, ".pon.tsv"), sep = "\t", row.names = TRUE, col.names = NA)
-```
 ```

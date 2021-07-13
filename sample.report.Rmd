@@ -8,7 +8,7 @@ params:
 
 
 ```{r setup, include=FALSE}
-#knitr::opts_knit$set(root.dir = "/home/vera/dissertation/test.pat.munich/")
+#knitr::opts_knit$set(root.dir = "/media/vera/big_data/coriandR/output/17828.munich.13.07/")
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 # knitr::opts_chunk$set(dev = "png", dev.args = list(type = "cairo-png"))
 knitr::opts_chunk$set(dev = 'pdf')
@@ -158,6 +158,13 @@ with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line
 ```{r abberation characters, echo = FALSE}
 pon$aberration = factor(ifelse((pon$patient.norm > 1.5 *pon$norm.clean.median & pon$gauss.adjust < 0.05), 'amp', ifelse((pon$patient.norm < 0.75 *pon$norm.clean.median & pon$gauss.adjust < 0.05), 'del', 'normal')), levels = c('normal', 'amp', 'del'))
 ```
+
+```{r gc content correlation, echo = FALSE}
+plot(pon$patient.norm/pon$norm.clean.mean, pon$gc, type='p',
+     main="Correlation ratio patient/median pon to gc content", pch = 18,
+     ylab="Ratio patient/median pon", xlab="gc content", xlim = c(0.3, 1))
+```
+
 
 \newpage
 

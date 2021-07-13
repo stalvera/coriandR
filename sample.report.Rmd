@@ -8,16 +8,12 @@ params:
 
 
 ```{r setup, include=FALSE}
-#knitr::opts_knit$set(root.dir = "/home/vera/dissertation/test.report.coriandR")
+#knitr::opts_knit$set(root.dir = "/media/vera/big_data/coriandR/output/17828.munich.13.07/")
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 # knitr::opts_chunk$set(dev = "png", dev.args = list(type = "cairo-png"))
 knitr::opts_chunk$set(dev = 'pdf')
 
-#library(ggplot2)
 library(knitr)
-#library(optparse)
-library(data.table)
-#library(HMMcopy)
 ```
 
 
@@ -30,6 +26,7 @@ if(tolower(patient.meta$gender) %in% c("f", "female")) {
 }
 ```
 
+## Whole genome sequencing depth of patient data
 
 ```{r data definition, echo = FALSE, fig.width=7, fig.height=3}
 # Read patient counts from featureCounts output
@@ -83,8 +80,8 @@ contigs$chr = gsub("chr", "", rownames(contigs))
 contigs = contigs[order(as.numeric(contigs$chr)),]
 par(mar=c(2, 4, 1, 1))
 plot(pon$bin, pon$patient, ylim = c(0, qnorm(0.999, mean(pon$patient), sd(pon$patient))),
-     col = "#11111133",
-     pch = 16, xaxt="n", xlab="", las = 1, ylab="read depth", xaxs="i")
+     col = "#11111111",
+     pch = 16, xaxt="n", xlab="", las = 1, ylab="Read depth", xaxs="i")
 abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
 with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=-.5, cex.axis=0.5, tick=F))
 with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=-1, cex.axis=0.5, tick=F))
@@ -136,10 +133,10 @@ sd = mean(unlist(pon$norm.clean.sd), na.rm=T)
 pon$pat.z = (pon$patient.norm-1) / sd
 pat.dens = density(pon$pat.z, na.rm=T)
 plot(seq(from=-20, to=20, by=0.1), dnorm(seq(from=-20, to=20, by=0.1)), type='l', col="gray",
-     main="Patient z-values compared to estimated PON distribution", ylab="Density", xlab="z-value", ylim=c(0, max(pat.dens$y)))
+     main="Patient Z-values compared to estimated PON distribution", ylab="Density", xlab="z-value", ylim=c(0, max(pat.dens$y)))
 #lines(density((pon$norm.clean.mean-1)/sd, na.rm=T), col="blue")
 lines(pat.dens, col="black")
-legend("topright", legend=c("theoretical z-Distribution", "Patient"), col=c("gray", "black"), lty=1, cex=0.7)
+legend("topright", legend=c("theoretical Z-Distribution", "Patient"), col=c("gray", "black"), lty=1, cex=0.7)
   
 pon$gauss = apply(pon[, c("patient.norm", "norm.clean.median", "norm.clean.sd")], 1, function(x) ifelse(x[1] == 0, 1, min(pnorm(q=x[1], mean=x[2], sd=x[3], lower.tail=x[1]<x[2])*2, 1)))
 pon$gauss.adjust = p.adjust(pon$gauss, method="hochberg")
@@ -161,6 +158,13 @@ with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line
 ```{r abberation characters, echo = FALSE}
 pon$aberration = factor(ifelse((pon$patient.norm > 1.5 *pon$norm.clean.median & pon$gauss.adjust < 0.05), 'amp', ifelse((pon$patient.norm < 0.75 *pon$norm.clean.median & pon$gauss.adjust < 0.05), 'del', 'normal')), levels = c('normal', 'amp', 'del'))
 ```
+
+```{r gc content correlation, echo = FALSE}
+plot(pon$patient.norm/pon$norm.clean.mean, pon$gc, type='p',
+     main="Correlation ratio patient/median pon to gc content", pch = 18,
+     ylab="Ratio patient/median pon", xlab="gc content", xlim = c(0.3, 1))
+```
+
 
 \newpage
 
@@ -247,7 +251,8 @@ kable(reported_genes[ , 1:6], align = "lllrrl")
 > Papaemmanuil et al. (2016): Genomic Classification and Prognosis in Acute Myeloid Leukemia. The New England journal of medicine 374 (23), S. 2209–2221. DOI:10.1056/NEJMoa1516192.
 
 \newpage
-## Chromosome Plots:
+
+## Chromosome overview plots:
 
 ```{r simplePlots, echo = FALSE, fig.width=12, fig.height=3}
 units = c('', '', 'K', 'K', 'K', 'M', 'M', 'M')
@@ -324,6 +329,7 @@ for(i in unique(pon$Chr)) {
 #     plot_patient = plot_bins_regions_ideogram(pon, cytobands, segments,
 #                                               chrn)
 #   }
+
 ```
 
 

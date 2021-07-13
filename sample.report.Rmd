@@ -3,7 +3,7 @@ title: "Report CORIANDR: ChrOmosomal abeRration Identifier AND Reporter in R"
 date: "`r format(Sys.time(), '%d-%m-%Y')`"
 output: pdf_document
 params:
-  data: patient
+  data: samples/test_patient
 ---
 
 
@@ -13,11 +13,11 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 # knitr::opts_chunk$set(dev = "png", dev.args = list(type = "cairo-png"))
 knitr::opts_chunk$set(dev = 'pdf')
 
-library(ggplot2)
+#library(ggplot2)
 library(knitr)
-library(optparse)
+#library(optparse)
 library(data.table)
-library(HMMcopy)
+#library(HMMcopy)
 ```
 
 
@@ -60,8 +60,8 @@ pon$patient.norm = pon$patient / median(pon$patient)
 
 # Giemsa-bands for plotting
 # The bands table contains the g-bands of the human genome. Cheung VG, Nowak N, Jang W, Kirsch IR, Zhao S, Chen XN, Furey TS, Kim UJ, Kuo WL, Olivier M et al. Integration of cytogenetic landmarks into the draft sequence of the human genome. Nature. 2001 Feb 15;409(6822):953-8. PMID: 11237021
-cytobands = read.table("cytobands.tsv", header=TRUE, sep = "\t", row.names = 1, stringsAsFactors = F)
-band_types = data.frame(hue=c(0.6, 1, 1, 1, 1, 1, 0.1, 0.8), saturation=c(1, 0, 0, 0, 0, 0, 1, 1), value=c(1, 1, 0.5, 0.8, 0.7, 0.6, 1, 1), row.names=c("acen", "gneg", "gpos100", "gpos25", "gpos50", "gpos75", "gvar", "stalk"))
+cytobands = read.table("tables/cytobands_sort.2.tsv", header=TRUE, sep = "\t", row.names = 1, stringsAsFactors = F)
+band_types = data.frame(hue=c(0.3, 1, 1, 1, 1, 1, 0.1, 0.8), saturation=c(1, 0, 0, 0, 0, 0, 1, 1), value=c(1, 1, 0.5, 0.8, 0.7, 0.6, 1, 1), row.names=c("acen", "gneg", "gpos100", "gpos25", "gpos50", "gpos75", "gvar", "stalk"))
 cytobands$hue = band_types[cytobands$Band.type, "hue"]
 cytobands$saturation = band_types[cytobands$Band.type, "saturation"]
 cytobands$value = band_types[cytobands$Band.type, "value"]
@@ -70,10 +70,10 @@ cytobands$value = band_types[cytobands$Band.type, "value"]
 #band.borders = read.table("band.borders.tsv", header=TRUE, sep = "\t", row.names = 1, stringsAsFactors = F)
 
 # List of relevant cancer genes
-cancer_genes = read.table("cancer_genes.csv", header=TRUE, sep = "\t", stringsAsFactors = F)
+cancer_genes = read.table("tables/cancer.driver.genes_unique.and.goi.aml.csv", header=TRUE, sep = "\t", stringsAsFactors = F)
 
 # List of all genes
-all_genes = read.table("all_genes.tsv", header=TRUE, row.names = 1, stringsAsFactors = F)
+all_genes = read.table("tables/all_genes.tsv", header=TRUE, row.names = 1, stringsAsFactors = F)
 all_genes$start = as.numeric(all_genes$start)
 all_genes$end = as.numeric(all_genes$end)
 
@@ -83,7 +83,7 @@ contigs$chr = gsub("chr", "", rownames(contigs))
 contigs = contigs[order(as.numeric(contigs$chr)),]
 par(mar=c(2, 4, 1, 1))
 plot(pon$bin, pon$patient, ylim = c(0, qnorm(0.999, mean(pon$patient), sd(pon$patient))),
-     col = "#11111111",
+     col = "#11111133",
      pch = 16, xaxt="n", xlab="", las = 1, ylab="read depth", xaxs="i")
 abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
 with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=-.5, cex.axis=0.5, tick=F))
@@ -147,8 +147,8 @@ pon$gauss.adjust[is.na(pon$gauss.adjust)] = 1
 par(mar=c(2, 4, 1, 1))
 with(pon[!pon$blocked, ],
      plot(bin, patient.norm*2, ylim=c(0, 4),
-          col = ifelse(gauss.adjust < 0.05, "#ff000011", "#11111111"),
-          pch = 16, xaxt="n", xlab="", las = 1, ylab="ploidy", xaxs="i")
+          col = ifelse(gauss.adjust < 0.05, "#ff000033", "#11111111"),
+          pch = 20, xaxt="n", xlab="", las = 1, ylab="ploidy", xaxs="i")
 )
 # with(pon[!pon$blocked & pon$gauss.adjust < 0.01 , ],
 #      arrows(bin, norm.clean.median*2, bin, patient.norm*2, length=0.03, angle=45, code=2, col="#ff000022", lwd=3))
@@ -174,7 +174,7 @@ cytobands$aberration = factor(apply(cytobands, 1, function(x) {
   return("normal")
 }))
 
-cytobands$hue[cytobands$aberration == "amp"] = 0.35
+cytobands$hue[cytobands$aberration == "amp"] = 0.65
 cytobands$saturation[cytobands$aberration == "amp"] = 1
 cytobands$hue[cytobands$aberration == "del"] = 0
 cytobands$saturation[cytobands$aberration == "del"] = 1
@@ -251,10 +251,11 @@ kable(reported_genes[ , 1:6], align = "lllrrl")
 
 ```{r simplePlots, echo = FALSE, fig.width=12, fig.height=3}
 units = c('', '', 'K', 'K', 'K', 'M', 'M', 'M')
+par(mar=c(4, 4, 0.5, 7))
 for(i in unique(pon$Chr)) {
   with(pon[pon$Chr == i,], {
-    plot(Start, patient.norm/norm.clean.median *2, col = ifelse(blocked, 0, c("black", "green", "red")[aberration]), ylim=c(0,4), xaxt='n', xlab='', ylab='Ploidy', pch=20)
-    segments(Start, 2+norm.clean.sd*2, Start, 2-norm.clean.sd*2, col="#aaaaaaaa")
+    plot(Start, ifelse(patient.norm > 2, 4, patient.norm*2), col = ifelse(blocked, 0, c("black", "blue", "red")[aberration]), ylim=c(0,4), xaxt='n', xlab='', ylab='Ploidy', pch=ifelse(patient.norm > 2, 17, 20), las=2)
+    segments(Start, (norm.clean.median+norm.clean.sd*2)*2, Start, (norm.clean.median-norm.clean.sd*2)*2, col="#aaaaaaaa")
       mag = floor(log10(max(End)))
       xmax = floor(max(End)/10^mag)*10^mag
       axis(1, seq(0, xmax/10^mag)*10^mag, paste0(seq(0, xmax/10^mag)*10^(mag%%3), units[mag-mag%%3], ' bp'), line=2)
@@ -266,6 +267,7 @@ for(i in unique(pon$Chr)) {
          col=hsv(hue, saturation, value, 0.3)
          )
   })
+  legend("right", c("amplification", "deletion", "stalk", "centromer"), fill=c("white", "white", "#aaaa0055", "#00990055"), col=c("blue", "red", NA, NA), xpd=T, inset=c(-.13, 0), border=F, lty=0, pch=c(20, 20, NA, NA), cex=0.8)
 }
 ```
 
@@ -273,55 +275,55 @@ for(i in unique(pon$Chr)) {
 \newpage
 
 ```{r chromosome plots, echo = FALSE, fig.width=12, fig.height=3}
-plot_bins_regions_ideogram <- function(pon, cytobands, segments, chrn) {
-
-  x <- pon[pon$Chr == chrn, "Start"]
-  y <- pon[pon$Chr == chrn, "patient.norm"]*2
-  plot_patient <- qplot(x, y, ylim = c(-1, 4)) +
-    
-                  geom_line(aes(x = pon[pon$Chr == chrn, "Start"],
-                                y = pon[pon$Chr == chrn, "norm.clean.median"]*2),
-                                color = "gray", linetype = "solid") +
-    
-                  geom_errorbar(aes(x = pon[pon$Chr == chrn, "Start"],
-                                    ymin = pon[pon$Chr == chrn, "norm.clean.median"]
-                                           *pon[pon$Chr == chrn, "ploidy"] - 
-                                    pon[pon$Chr == chrn, "norm.clean.sd"]*2, 
-                                    ymax = pon[pon$Chr == chrn, "norm.clean.median"]*2 + 
-                                    pon[pon$Chr == chrn, "norm.clean.sd"]*2),
-                                width=0.1, color = "gray", alpha = 0.9, na.rm = TRUE) +
-                  geom_point(aes(x = x, 
-                                 y = pon[pon$Chr == chrn, "patient.norm"]*2),
-                                 shape = 19, color = "black", size = 1) +
-    
-                  #das eigentliche ideogram
-                  geom_rect(data = cytobands[cytobands$Chr == chrn, ],
-                            stat = "identity", position = "identity",
-                            aes(NULL, NULL, xmin = Start, xmax = End, fill = Band.type),
-                            ymin = -0.6, ymax = -0.2, color = "gray", size = 0.5, alpha = 0.4) +
-    
-                  scale_fill_manual(values=c("acen" = "#2b8cbe", "gneg" = "#f7f7f7",
-                                             "gpos100" = "#252525", "gpos25" = "#cccccc",
-                                             "gpos50" = "#969696", "gpos75" = "#636363",
-                                             "gvar" = "#045a8d", "stalk" = "#be8c2b",
-                                             "amp" = "darkgreen", "del" = "darkred",
-                                             "band add" = "darkgreen", "band del" = "darkred")) +
-    
-                  # hier legende fuer die banden einfuehren
-    
-                  theme_bw() +
-                  labs(title = chrn, y = "Ploidy") +
-                  scale_x_discrete("Giemsa bands")
-  print(plot_patient)
-  return(plot_patient)
-}
-
-
-chrn= "chr0"
-  for (chrn in unique(pon$Chr)) {
-    plot_patient = plot_bins_regions_ideogram(pon, cytobands, segments,
-                                              chrn)
-  }
+# plot_bins_regions_ideogram <- function(pon, cytobands, segments, chrn) {
+# 
+#   x <- pon[pon$Chr == chrn, "Start"]
+#   y <- pon[pon$Chr == chrn, "patient.norm"]*2
+#   plot_patient <- qplot(x, y, ylim = c(-1, 4)) +
+#     
+#                   geom_line(aes(x = pon[pon$Chr == chrn, "Start"],
+#                                 y = pon[pon$Chr == chrn, "norm.clean.median"]*2),
+#                                 color = "gray", linetype = "solid") +
+#     
+#                   geom_errorbar(aes(x = pon[pon$Chr == chrn, "Start"],
+#                                     ymin = pon[pon$Chr == chrn, "norm.clean.median"]
+#                                            *pon[pon$Chr == chrn, "ploidy"] - 
+#                                     pon[pon$Chr == chrn, "norm.clean.sd"]*2, 
+#                                     ymax = pon[pon$Chr == chrn, "norm.clean.median"]*2 + 
+#                                     pon[pon$Chr == chrn, "norm.clean.sd"]*2),
+#                                 width=0.1, color = "gray", alpha = 0.9, na.rm = TRUE) +
+#                   geom_point(aes(x = x, 
+#                                  y = pon[pon$Chr == chrn, "patient.norm"]*2),
+#                                  shape = 19, color = "black", size = 1) +
+#     
+#                   #das eigentliche ideogram
+#                   geom_rect(data = cytobands[cytobands$Chr == chrn, ],
+#                             stat = "identity", position = "identity",
+#                             aes(NULL, NULL, xmin = Start, xmax = End, fill = Band.type),
+#                             ymin = -0.6, ymax = -0.2, color = "gray", size = 0.5, alpha = 0.4) +
+#     
+#                   scale_fill_manual(values=c("acen" = "#2b8cbe", "gneg" = "#f7f7f7",
+#                                              "gpos100" = "#252525", "gpos25" = "#cccccc",
+#                                              "gpos50" = "#969696", "gpos75" = "#636363",
+#                                              "gvar" = "#045a8d", "stalk" = "#be8c2b",
+#                                              "amp" = "darkgreen", "del" = "darkred",
+#                                              "band add" = "darkgreen", "band del" = "darkred")) +
+#     
+#                   # hier legende fuer die banden einfuehren
+#     
+#                   theme_bw() +
+#                   labs(title = chrn, y = "Ploidy") +
+#                   scale_x_discrete("Giemsa bands")
+#   print(plot_patient)
+#   return(plot_patient)
+# }
+# 
+# 
+# chrn= "chr0"
+#   for (chrn in unique(pon$Chr)) {
+#     plot_patient = plot_bins_regions_ideogram(pon, cytobands, segments,
+#                                               chrn)
+#   }
 ```
 
 

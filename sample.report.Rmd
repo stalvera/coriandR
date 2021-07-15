@@ -1,6 +1,6 @@
 ---
 title: "Report CORIANDR: ChrOmosomal abeRration Identifier AND Reporter in R"
-date: "`r format(Sys.time(), '%d-%m-%Y')`"
+date: "`r format(Sys.time(), '%d-%m-%Y, %H:%M')`"
 output: pdf_document
 params:
   data: samples/test_patient
@@ -69,7 +69,7 @@ cytobands$value = band_types[cytobands$Band.type, "value"]
 # List of relevant cancer genes
 cancer_genes = read.table("tables/cancer.driver.genes_unique.and.goi.aml.csv", header=TRUE, sep = "\t", stringsAsFactors = F)
 
-# List of all genes
+# List of all genes in human genome
 all_genes = read.table("tables/all_genes.tsv", header=TRUE, row.names = 1, stringsAsFactors = F)
 all_genes$start = as.numeric(all_genes$start)
 all_genes$end = as.numeric(all_genes$end)
@@ -88,7 +88,7 @@ with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line
 ```
 
 
-## Sample characteristics and mapping statistics
+## Sample sequencing characteristics and mapping statistics
 
 ```{r mapping statistics, echo = FALSE}
 stats = data.frame(t(read.table(as.character(patient.meta$mapping_stats), stringsAsFactors = F, row.names=1)))
@@ -133,7 +133,7 @@ sd = mean(unlist(pon$norm.clean.sd), na.rm=T)
 pon$pat.z = (pon$patient.norm-1) / sd
 pat.dens = density(pon$pat.z, na.rm=T)
 plot(seq(from=-20, to=20, by=0.1), dnorm(seq(from=-20, to=20, by=0.1)), type='l', col="gray",
-     main="Patient Z-values compared to estimated PON distribution", ylab="Density", xlab="z-value", ylim=c(0, max(pat.dens$y)))
+     main="Patient Z-values compared to estimated PON distribution", ylab="Density", xlab="Z-value", ylim=c(0, max(pat.dens$y)))
 #lines(density((pon$norm.clean.mean-1)/sd, na.rm=T), col="blue")
 lines(pat.dens, col="black")
 legend("topright", legend=c("theoretical Z-Distribution", "Patient"), col=c("gray", "black"), lty=1, cex=0.7)
@@ -147,8 +147,7 @@ with(pon[!pon$blocked, ],
           col = ifelse(gauss.adjust < 0.05, "#ff000033", "#11111111"),
           pch = ifelse(patient.norm > 2, 17, 20), xaxt="n", xlab="", las = 1, ylab="Ploidy", xaxs="i")
 )
-# with(pon[!pon$blocked & pon$gauss.adjust < 0.01 , ],
-#      arrows(bin, norm.clean.median*2, bin, patient.norm*2, length=0.03, angle=45, code=2, col="#ff000022", lwd=3))
+
 abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
 with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=-.5, cex.axis=0.5, tick=F))
 with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=-1, cex.axis=0.5, tick=F))
@@ -182,12 +181,6 @@ cytobands$hue[cytobands$aberration == "amp"] = 0.65
 cytobands$saturation[cytobands$aberration == "amp"] = 1
 cytobands$hue[cytobands$aberration == "del"] = 0
 cytobands$saturation[cytobands$aberration == "del"] = 1
-
-cytobands$Band.type[cytobands$aberration == "amp"] = "band add"
-cytobands$Color[cytobands$aberration == "amp"] = "darkgreen"
-
-cytobands$Band.type[cytobands$aberration == "del"] = "band del"
-cytobands$Color[cytobands$aberration == "del"] = "darkred"
 
 # bands merging
 abnorm.bands = cytobands[cytobands$aberration != "normal", ]
@@ -276,64 +269,11 @@ for(i in unique(pon$Chr)) {
 }
 ```
 
-
 \newpage
-
-```{r chromosome plots, echo = FALSE, fig.width=12, fig.height=3}
-# plot_bins_regions_ideogram <- function(pon, cytobands, segments, chrn) {
-# 
-#   x <- pon[pon$Chr == chrn, "Start"]
-#   y <- pon[pon$Chr == chrn, "patient.norm"]*2
-#   plot_patient <- qplot(x, y, ylim = c(-1, 4)) +
-#     
-#                   geom_line(aes(x = pon[pon$Chr == chrn, "Start"],
-#                                 y = pon[pon$Chr == chrn, "norm.clean.median"]*2),
-#                                 color = "gray", linetype = "solid") +
-#     
-#                   geom_errorbar(aes(x = pon[pon$Chr == chrn, "Start"],
-#                                     ymin = pon[pon$Chr == chrn, "norm.clean.median"]
-#                                            *pon[pon$Chr == chrn, "ploidy"] - 
-#                                     pon[pon$Chr == chrn, "norm.clean.sd"]*2, 
-#                                     ymax = pon[pon$Chr == chrn, "norm.clean.median"]*2 + 
-#                                     pon[pon$Chr == chrn, "norm.clean.sd"]*2),
-#                                 width=0.1, color = "gray", alpha = 0.9, na.rm = TRUE) +
-#                   geom_point(aes(x = x, 
-#                                  y = pon[pon$Chr == chrn, "patient.norm"]*2),
-#                                  shape = 19, color = "black", size = 1) +
-#     
-#                   #das eigentliche ideogram
-#                   geom_rect(data = cytobands[cytobands$Chr == chrn, ],
-#                             stat = "identity", position = "identity",
-#                             aes(NULL, NULL, xmin = Start, xmax = End, fill = Band.type),
-#                             ymin = -0.6, ymax = -0.2, color = "gray", size = 0.5, alpha = 0.4) +
-#     
-#                   scale_fill_manual(values=c("acen" = "#2b8cbe", "gneg" = "#f7f7f7",
-#                                              "gpos100" = "#252525", "gpos25" = "#cccccc",
-#                                              "gpos50" = "#969696", "gpos75" = "#636363",
-#                                              "gvar" = "#045a8d", "stalk" = "#be8c2b",
-#                                              "amp" = "darkgreen", "del" = "darkred",
-#                                              "band add" = "darkgreen", "band del" = "darkred")) +
-#     
-#                   # hier legende fuer die banden einfuehren
-#     
-#                   theme_bw() +
-#                   labs(title = chrn, y = "Ploidy") +
-#                   scale_x_discrete("Giemsa bands")
-#   print(plot_patient)
-#   return(plot_patient)
-# }
-# 
-# 
-# chrn= "chr0"
-#   for (chrn in unique(pon$Chr)) {
-#     plot_patient = plot_bins_regions_ideogram(pon, cytobands, segments,
-#                                               chrn)
-#   }
-
-```
-
 
 The legend contains characteristics to Giemsa stain results. Recognized stain values: gneg, gpos50, gpos75, gpos25, gpos100, acen, gvar, stalk.
 
 > Cheung VG, Nowak N, Jang W, Kirsch IR, Zhao S, Chen XN, Furey TS, Kim UJ, Kuo WL, Olivier M et al. Integration of cytogenetic landmarks into the draft sequence of the human genome. Nature. 2001 Feb 15;409(6822):953-8. PMID: 11237021
+
+The reads that are marked with triangles have a particularly deep sequencing depth, i.e. there are more than 4 copies.
 

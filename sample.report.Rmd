@@ -248,15 +248,17 @@ kable(reported_genes[ , 1:6], align = "lllrrl")
 ## Chromosome overview plots:
 
 ```{r simplePlots, echo = FALSE, fig.width=12, fig.height=4}
-units = c('0', '00', 'K', '0K', '00K', 'M', '0M', '00M', 'B', 'B', 'B', 'T', 'T', 'T')
-par(mar=c(4, 4, 0.5, 7))
+#units = c('0', '00', 'K', '0K', '00K', 'M', '0M', '00M', 'B', 'B', 'B', 'T', 'T', 'T')
+par(mar=c(4, 4, 0.5, 5.5))
 for(i in unique(pon$Chr)) {
   with(pon[pon$Chr == i,], {
-    plot(Start, ifelse(patient.norm > 2, 4, patient.norm*2), col = ifelse(blocked, 0, c("black", "blue", "red")[aberration]), ylim=c(0,4), xlim=c(0,max(End)), xaxt='n', xaxs="i", xlab='', ylab='Ploidy', pch=ifelse(patient.norm > 2, 17, 20), las=2)
+    plot(Start, ifelse(patient.norm > 2.5, 4, patient.norm*2), col = ifelse(blocked, 0, c("black", "blue", "red")[aberration]), ylim=c(0,5), xlim=c(0,max(End)), xaxt='n', xaxs="i", xlab='', ylab='Ploidy', pch=ifelse(patient.norm > 2.5, 17, 20), las=2)
     segments(Start, (norm.clean.median+norm.clean.sd*3)*2, Start, (norm.clean.median-norm.clean.sd*3)*2, col="#aaaaaaaa")
-      mag = floor(log10(max(End)))
-      xmax = floor(max(End)/10^mag+1)*10^mag
-      axis(1, seq(0, mag+2)*10^(mag), c('0 bp', paste0(seq(1, mag+2), units[mag], ' bp')), line=2)
+    #mag = floor(log10(max(End)))
+    #xmax = floor(max(End)/10^mag+1)*10^mag
+    axis(1, seq(0, 10^9, by=2*10^7), paste(seq(0, 1000, by=20), "Mbp"), line=2, tck=-0.05)
+    axis(1, seq(0, 10^9, by=10^7), rep("", 10^9/10^7+1), line=2)
+    #axis(1, seq(0, mag+2)*10^(mag), c('0 bp', paste0(seq(1, mag+2), units[mag], ' bp')), line=2)
   })
   mtext(i, side=2, line=0.9, at=-0.4, las=2, cex=1.5)
   abline(h=0:4, lty=3, col="#aaaaaaaa")
@@ -265,7 +267,7 @@ for(i in unique(pon$Chr)) {
          col=hsv(hue, saturation, value, 0.3)
          )
   })
-  legend("right", c("amplification", "deletion", "stalk", "centromer"), fill=c("white", "white", "#aaaa0055", "#00990055"), col=c("blue", "red", NA, NA), xpd=T, inset=c(-.13, 0), border=F, lty=0, pch=c(20, 20, NA, NA), cex=0.8)
+  legend("right", c("amplif.", "deletion", "stalk", "centromer"), fill=c("white", "white", "#aaaa0055", "#00990055"), col=c("blue", "red", NA, NA), xpd=T, inset=c(-.1, 0), border=F, lty=0, pch=c(20, 20, NA, NA), cex=0.7)
 }
 ```
 

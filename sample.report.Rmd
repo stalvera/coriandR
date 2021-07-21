@@ -182,37 +182,44 @@ cytobands$saturation[cytobands$aberration == "amp"] = 1
 cytobands$hue[cytobands$aberration == "del"] = 0
 cytobands$saturation[cytobands$aberration == "del"] = 1
 
+
 # bands merging
 abnorm.bands = cytobands[cytobands$aberration != "normal", ]
+colnames(abnorm.bands)[colnames(abnorm.bands) == "Name"] = "Start.band"
 karyotype_to_report = abnorm.bands[1, ]
-if(nrow(abnorm.bands) < 2) return(karyotype_to_report)
 
-k = 1
-# the counter in table karyotype_to_report
-for (s in 2:nrow(abnorm.bands)) {
-  if (karyotype_to_report$Chr[k] == abnorm.bands$Chr[s] &
-      karyotype_to_report$aberration[k] == abnorm.bands$aberration[s] &
-      karyotype_to_report$End[k] == abnorm.bands$Start[s]) 
-    { karyotype_to_report$last_Name[k] = abnorm.bands$Name[s]
-      karyotype_to_report$End[k] = abnorm.bands$End[s]
-      next 
+if (nrow(abnorm.bands) >= 2) {
+  k = 1
+  # the counter in table karyotype_to_report
+  for (s in 2:nrow(abnorm.bands)) {
+    if (karyotype_to_report$Chr[k] == abnorm.bands$Chr[s] &
+        karyotype_to_report$aberration[k] == abnorm.bands$aberration[s] &
+        karyotype_to_report$End[k] == abnorm.bands$Start[s]) 
+      { 
+        karyotype_to_report$End.band[k] = abnorm.bands$Start.band[s]
+        karyotype_to_report$End[k] = abnorm.bands$End[s]
+        k = nrow(karyotype_to_report)
+    } else {
+       karyotype_to_report[k+1, ] = abnorm.bands[s, ]
+       karyotype_to_report[k+1, "End.band"] = karyotype_to_report[k+1, "Start.band"]
+       # die bande auf einem neuen chr oder mit einer anderen richtung hinzufuegen
+       k = nrow(karyotype_to_report)
+       # das ist jetzt die bande, von der aus betrachtet wird
     }
-  else {
-    karyotype_to_report[nrow(karyotype_to_report) +1, ] = abnorm.bands[s, ]
-     # die bande auf einem neuen chr oder mit einer anderen richtung hinzufuegen
-     k = nrow(karyotype_to_report)
-     # das ist jetzt die bande, von der aus betrachtet wird
   }
- }
+} else {
+  return(karyotype_to_report)
+}
+
+
 
 karyotype_to_report$karyotype = as.character(paste0(karyotype_to_report$aberration, "(",
                                                        sub("chr", "", karyotype_to_report$Chr), ")(",
-                                                       karyotype_to_report$Name,
-                                                       karyotype_to_report$last_Name, ")"))
+                                                       karyotype_to_report$Start.band,
+                                                       karyotype_to_report$End.band, ")"))
 
 kable(karyotype_to_report$karyotype, col.names = NULL, align = "l", "html")
 ```
-
 
 
 \newpage
@@ -248,15 +255,18 @@ kable(reported_genes[ , 1:6], align = "lllrrl")
 ## Chromosome overview plots:
 
 ```{r simplePlots, echo = FALSE, fig.width=12, fig.height=4}
-units = c('0', '00', 'K', '0K', '00K', 'M', '0M', '00M', 'B', 'B', 'B', 'T', 'T', 'T')
-par(mar=c(4, 4, 0.5, 7))
+#units = c('0', '00', 'K', '0K', '00K', 'M', '0M', '00M', 'B', 'B', 'B', 'T', 'T', 'T')
+par(mar=c(4, 4, 0.5, 5.5))
+
 for(i in unique(pon$Chr)) {
   with(pon[pon$Chr == i,], {
-    plot(Start, ifelse(patient.norm > 2, 4, patient.norm*2), col = ifelse(blocked, 0, c("black", "blue", "red")[aberration]), ylim=c(0,4), xlim=c(0,max(End)), xaxt='n', xaxs="i", xlab='', ylab='Ploidy', pch=ifelse(patient.norm > 2, 17, 20), las=2)
+    plot(Start, ifelse(patient.norm > 2.5, 4, patient.norm*2), col = ifelse(blocked, 0, c("black", "blue", "red")[aberration]), ylim=c(0,5), xlim=c(0,max(End)), xaxt='n', xaxs="i", xlab='', ylab='Ploidy', pch=ifelse(patient.norm > 2.5, 17, 20), las=2)
     segments(Start, (norm.clean.median+norm.clean.sd*3)*2, Start, (norm.clean.median-norm.clean.sd*3)*2, col="#aaaaaaaa")
-      mag = floor(log10(max(End)))
-      xmax = floor(max(End)/10^mag+1)*10^mag
-      axis(1, seq(0, mag+2)*10^(mag), c('0 bp', paste0(seq(1, mag+2), units[mag], ' bp')), line=2)
+    #mag = floor(log10(max(End)))
+    #xmax = floor(max(End)/10^mag+1)*10^mag
+    axis(1, seq(0, 10^9, by=2*10^7), paste(seq(0, 1000, by=20), "Mbp"), line=2, tck=-0.05)
+    axis(1, seq(0, 10^9, by=10^7), rep("", 10^9/10^7+1), line=2)
+    #axis(1, seq(0, mag+2)*10^(mag), c('0 bp', paste0(seq(1, mag+2), units[mag], ' bp')), line=2)
   })
   mtext(i, side=2, line=0.9, at=-0.4, las=2, cex=1.5)
   abline(h=0:4, lty=3, col="#aaaaaaaa")
@@ -265,15 +275,17 @@ for(i in unique(pon$Chr)) {
          col=hsv(hue, saturation, value, 0.3)
          )
   })
-  legend("right", c("amplification", "deletion", "stalk", "centromer"), fill=c("white", "white", "#aaaa0055", "#00990055"), col=c("blue", "red", NA, NA), xpd=T, inset=c(-.13, 0), border=F, lty=0, pch=c(20, 20, NA, NA), cex=0.8)
+  legend("right", c("amplification", "gain*", "deletion", "stalk", "centromer"), fill=c("white", "white", "white", "#aaaa0055", "#00990055"), col=c("blue", "blue", "red", NA, NA), xpd=T, inset=c(-.1, 0), border=F, lty=0, pch=c(20, 2, 20, NA, NA), cex=0.7)
 }
 ```
 
 \newpage
 
-The legend contains characteristics to Giemsa stain results. Recognized stain values: gneg, gpos50, gpos75, gpos25, gpos100, acen, gvar, stalk.
+\* The reads that are marked with triangles have a particularly deep sequencing depth, i.e. there are more than 4 copies.
+
+\*\* The legend contains characteristics to Giemsa stain results. Recognized stain values: gneg, gpos50, gpos75, gpos25, gpos100, acen, gvar, stalk.
 
 > Cheung VG, Nowak N, Jang W, Kirsch IR, Zhao S, Chen XN, Furey TS, Kim UJ, Kuo WL, Olivier M et al. Integration of cytogenetic landmarks into the draft sequence of the human genome. Nature. 2001 Feb 15;409(6822):953-8. PMID: 11237021
 
-The reads that are marked with triangles have a particularly deep sequencing depth, i.e. there are more than 4 copies.
+
 

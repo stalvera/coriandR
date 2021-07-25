@@ -27,7 +27,7 @@ printf "was with FeatureCounts\n \n"
 
 cp -p -v sample.report.Rmd output/$1/.
 
-printf "Normalization of the raw reads to the ploidy, calculation of the normal distribution and the application of the Gauss test to determine the p-value, adjustment of the p-value with the Benjamin-Hochberg method, exclusion of the data points with an abnormal GC content and/or abnormal variance in R ... \n"
+printf "Normalization of the raw reads to the ploidy, calculation of the normal distribution and the application of the Gauss test to determine the p-value, adjustment of the p-value with the Benjamini-Hochberg method, exclusion of the data points with an abnormal GC content and/or abnormal variance in R ... \n"
 R -e "rmarkdown::render('output/$1/sample.report.Rmd')"
 #pandoc --data-dir=pwd sample.report.Rmd
 printf "was successful\n \n \n"

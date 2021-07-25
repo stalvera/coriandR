@@ -26,6 +26,7 @@ if(tolower(patient.meta$gender) %in% c("f", "female")) {
 }
 ```
 
+
 ## Whole genome sequencing depth of patient data
 
 ```{r data definition, echo = FALSE, fig.width=7, fig.height=3}
@@ -55,6 +56,7 @@ pon$bin = 1:nrow(pon)  # needs recounting after gendering
 # Calculate normalized patient counts relative to median sequencing depth and multiply by expected ploidy
 pon$patient.norm = pon$patient / median(pon$patient)
 
+
 # Giemsa-bands for plotting
 # The bands table contains the g-bands of the human genome. Cheung VG, Nowak N, Jang W, Kirsch IR, Zhao S, Chen XN, Furey TS, Kim UJ, Kuo WL, Olivier M et al. Integration of cytogenetic landmarks into the draft sequence of the human genome. Nature. 2001 Feb 15;409(6822):953-8. PMID: 11237021
 cytobands = read.table("tables/cytobands_sort.2.tsv", header=TRUE, sep = "\t", row.names = 1, stringsAsFactors = F)
@@ -63,8 +65,6 @@ cytobands$hue = band_types[cytobands$Band.type, "hue"]
 cytobands$saturation = band_types[cytobands$Band.type, "saturation"]
 cytobands$value = band_types[cytobands$Band.type, "value"]
 
-#begin and end of giemsa bands for karyotyping
-#band.borders = read.table("band.borders.tsv", header=TRUE, sep = "\t", row.names = 1, stringsAsFactors = F)
 
 # List of relevant cancer genes
 cancer_genes = read.table("tables/cancer.driver.genes_unique.and.goi.aml.csv", header=TRUE, sep = "\t", stringsAsFactors = F)
@@ -132,12 +132,16 @@ This graph shows the distribution of the bins according to the depth of the sequ
 sd = mean(unlist(pon$norm.clean.sd), na.rm=T)
 pon$pat.z = (pon$patient.norm-1) / sd
 pat.dens = density(pon$pat.z, na.rm=T)
+
+# Presentation of patient Z-values compared to estimated PON distribution
 plot(seq(from=-20, to=20, by=0.1), dnorm(seq(from=-20, to=20, by=0.1)), type='l', col="gray",
      main="Patient Z-values compared to estimated PON distribution", ylab="Density", xlab="Z-value", ylim=c(0, max(pat.dens$y)))
 #lines(density((pon$norm.clean.mean-1)/sd, na.rm=T), col="blue")
 lines(pat.dens, col="black")
 legend("topright", legend=c("theoretical Z-Distribution", "Patient"), col=c("gray", "black"), lty=1, cex=0.7)
-  
+
+
+# Detection of all bins that are outside the normal distribution after applying a Gauss test and after p-value adjustment according to the Benjamini-Hochberg method 
 pon$gauss = apply(pon[, c("patient.norm", "norm.clean.median", "norm.clean.sd")], 1, function(x) ifelse(x[1] == 0, 1, min(pnorm(q=x[1], mean=x[2], sd=x[3], lower.tail=x[1]<x[2])*2, 1)))
 pon$gauss.adjust = p.adjust(pon$gauss, method="hochberg")
 pon$gauss.adjust[is.na(pon$gauss.adjust)] = 1
@@ -145,13 +149,16 @@ par(mar=c(2, 4, 1, 1))
 with(pon[!pon$blocked, ],
      plot(bin, ifelse(patient.norm > 2, 4, patient.norm*2), ylim=c(0, 4),
           col = ifelse(gauss.adjust < 0.05, "#ff000033", "#11111111"),
-          pch = ifelse(patient.norm > 2, 17, 20), xaxt="n", xlab="", las = 1, ylab="Ploidy", xaxs="i")
+          pch = ifelse(patient.norm > 2, 17, 20), xaxt="n", xlab="",
+          main="Overview of the bins deviating from the normal distribution", las = 1, ylab="Ploidy", xaxs="i")
 )
 
 abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
 with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=-.5, cex.axis=0.5, tick=F))
 with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=-1, cex.axis=0.5, tick=F))
 ```
+
+In this graphic, the bins are shown in red that are outside the normal distribution after applying a Gauss test and after p-value adjustment according to the Benjamini-Hochberg method. 
 
 
 ```{r abberation characters, echo = FALSE}
@@ -202,15 +209,14 @@ if (nrow(abnorm.bands) >= 2) {
     } else {
        karyotype_to_report[k+1, ] = abnorm.bands[s, ]
        karyotype_to_report[k+1, "End.band"] = karyotype_to_report[k+1, "Start.band"]
-       # die bande auf einem neuen chr oder mit einer anderen richtung hinzufuegen
+       # add the band on a new chr or with a different aberration
        k = nrow(karyotype_to_report)
-       # das ist jetzt die bande, von der aus betrachtet wird
+       # this is now the counter band
     }
   }
 } else {
   return(karyotype_to_report)
 }
-
 
 
 karyotype_to_report$karyotype = as.character(paste0(karyotype_to_report$aberration, "(",

@@ -12,22 +12,18 @@ source config.txt
 mkdir -p output/$1
 cp -p -v $pon output/$1/pon.tsv
 cp -p -v $2 output/$1/patient.meta.tsv
-cp -p -v $cytobands output/$1/cytobands.tsv
-cp -p -v $genes output/$1/all_genes.tsv
-cp -p -v $cgenes output/$1/cancer_genes.csv
-cp -p -v $bandborders output/$1/band.borders.tsv
 
-printf "Mapping statistics ... "
+printf "Mapping statistics (raw read pairs, average read length, unique mapping pairs) ... \n"
 printf "raw_read_pairs\t" > output/$1/mapping.stats.tsv; zcat $3 | awk 'NR%4==2{print}' | sort | uniq -c | wc -l >> output/$1/mapping.stats.tsv; zcat $3 | awk 'NR%4==2{a+=length($1)}END{print "average_read_length\t"(a/NR*4)}' >> output/$1/mapping.stats.tsv
 printf "were generated\n \n"
 
-printf "Sample table ... "
+printf "Sample table ... \n"
 ~/bin/subread-2.0.0-source/bin/featureCounts -a $gtf -o output/$1/patient.fc.tsv -T $(nproc) $5 2> output/$1/logs.featureCounts.txt
 printf "was with FeatureCounts\n \n"
 
 cp -p -v sample.report.Rmd output/$1/.
 
-printf "The normalisation and calculation of statistical parameters in R ... "
+printf "Normalization of the raw reads to the ploidy, calculation of the normal distribution and the application of the Gauss test to determine the p-value, adjustment of the p-value with the Benjamin-Hochberg method, exclusion of the data points with an abnormal GC content and/or abnormal variance in R ... \n"
 R -e "rmarkdown::render('output/$1/sample.report.Rmd')"
 #pandoc --data-dir=pwd sample.report.Rmd
 printf "was successful\n \n"

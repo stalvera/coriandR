@@ -27,10 +27,7 @@ printf "PON subjects read-table ... "
 printf "was created with FeatureCounts\n \n "
 
 printf "GC content of the PON subjects ... "
-samtools faidx $reference -o GRCh38.p13.genome.fa.fai
-cut -f 1,2 $reference.fai | sed -n '/chr/p' > GRCh38.p13.genome.sizes
-bedtools makewindows -g GRCh38.p13.genome.sizes -w 1000000 > GRCh38.p13.genome.1M.bed
-bedtools nuc -fi $reference -bed GRCh38.p13.genome.1M.bed > GRCh38.p13.genome.1M.nucl 
+cp -p -v $gccontent $2 
 printf "was calculated with bedtools \n \n"
 
 printf "The normalisation of PON and calculation of statistical parameters in R ... "

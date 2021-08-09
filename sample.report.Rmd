@@ -267,7 +267,7 @@ par(mar=c(4, 4, 0.5, 5.5))
 
 for(i in unique(pon$Chr)) {
   with(pon[pon$Chr == i,], {
-    plot(Start, ifelse(patient.norm > 2.5, 4, patient.norm*2), col = ifelse(blocked, 0, c("black", "blue", "red")[aberration]), ylim=c(0,5), xlim=c(0,max(End)), xaxt='n', xaxs="i", xlab='', ylab='Ploidy', pch=ifelse(patient.norm > 2.5, 17, 20), las=2)
+    plot(Start, ifelse(patient.norm > 2.5, 5, patient.norm*2), col = ifelse(blocked, 0, c("black", "blue", "red")[aberration]), ylim=c(0,5), xlim=c(0,max(End)), xaxt='n', xaxs="i", xlab='', ylab='Ploidy', pch=ifelse(patient.norm > 2.5, 17, 20), las=2)
     segments(Start, (norm.clean.median+norm.clean.sd*3)*2, Start, (norm.clean.median-norm.clean.sd*3)*2, col="#aaaaaaaa")
     #mag = floor(log10(max(End)))
     #xmax = floor(max(End)/10^mag+1)*10^mag

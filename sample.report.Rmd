@@ -76,15 +76,21 @@ all_genes$end = as.numeric(all_genes$end)
 
 # List of chromosomes for plotting
 contigs = data.frame(pos=tapply(pon$bin, pon$Chr, mean))
-contigs$chr = gsub("chr", "", rownames(contigs))
-contigs = contigs[order(as.numeric(contigs$chr)),]
+contigs$chr = rownames(contigs)
+contigs$Name = gsub("chr", "", rownames(contigs))
+contigs = contigs[order(as.numeric(contigs$Name)),]
+contigs$p_start = sapply(contigs$chr, function(c) min(c(cytobands$Start[cytobands$Chr == paste0('chr', c) & grepl('p', cytobands$Name)])))
+contigs$p_end = sapply(contigs$chr, function(c) max(c(cytobands$End[cytobands$Chr == paste0('chr', c) & grepl('p', cytobands$Name)])))
+contigs$q_start = sapply(contigs$chr, function(c) min(c(cytobands$Start[cytobands$Chr == paste0('chr', c) & grepl('q', cytobands$Name)])))
+contigs$q_end = sapply(contigs$chr, function(c) max(c(cytobands$End[cytobands$Chr == paste0('chr', c) & grepl('q', cytobands$Name)])))
+
 par(mar=c(2, 4, 1, 1))
 plot(pon$bin, pon$patient, ylim = c(0, qnorm(0.999, mean(pon$patient), sd(pon$patient))),
      col = "#11111111",
      pch = 16, xaxt="n", xlab="", las = 1, ylab="Read depth", xaxs="i")
 abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
-with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=-.5, cex.axis=0.5, tick=F))
-with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=-1, cex.axis=0.5, tick=F))
+with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=Name, at=pos, line=-.5, cex.axis=0.5, tick=F))
+with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=Name, at=pos, line=-1, cex.axis=0.5, tick=F))
 ```
 
 
@@ -154,8 +160,8 @@ with(pon[!pon$blocked, ],
 )
 
 abline(v = c(pon$bin[pon$Start == 1], nrow(pon)), col="#55555555", cex = 0.5)
-with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=chr, at=pos, line=-.5, cex.axis=0.5, tick=F))
-with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line=-1, cex.axis=0.5, tick=F))
+with(contigs[(1:(nrow(contigs)/2))*2, ], axis(side=1, labels=Name, at=pos, line=-.5, cex.axis=0.5, tick=F))
+with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=Name, at=pos, line=-1, cex.axis=0.5, tick=F))
 ```
 
 In this graphic, the bins are shown in red that are outside the normal distribution after applying a Gauss test and after p-value adjustment according to the Benjamini-Hochberg method. 
@@ -163,7 +169,6 @@ In this graphic, the bins are shown in red that are outside the normal distribut
 
 ```{r abberation characters, echo = FALSE}
 pon$aberration = factor(ifelse(pon$patient.norm > pon$norm.clean.median & pon$gauss.adjust < 0.05, 'amp', ifelse(pon$patient.norm < pon$norm.clean.median & pon$gauss.adjust < 0.05, 'del', 'normal')), levels = c('normal', 'amp', 'del'))
-# untested!
 ```
 
 ```{r gc content correlation, echo = FALSE}
@@ -227,6 +232,12 @@ karyotype_to_report$karyotype = as.character(paste0(karyotype_to_report$aberrati
                                                        karyotype_to_report$End.band, ")"))
 
 kable(karyotype_to_report$karyotype, col.names = NULL, align = "l", "html")
+```
+
+```{r new karyotyping}
+for(c in 1:nrow(contigs)){
+  if(sum(pon$aberration[pon$Chr == contigs$chr[c]] == 'amp')/sum(pon$Chr == contigs$chr[c]) > 0.8) print(paste(c, 'amplifiziert'))
+}
 ```
 
 

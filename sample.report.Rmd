@@ -79,10 +79,17 @@ contigs = data.frame(pos=tapply(pon$bin, pon$Chr, mean))
 contigs$chr = rownames(contigs)
 contigs$Name = gsub("chr", "", rownames(contigs))
 contigs = contigs[order(as.numeric(contigs$Name)),]
-contigs$p_start = sapply(contigs$chr, function(c) min(c(cytobands$Start[cytobands$Chr == paste0('chr', c) & grepl('p', cytobands$Name)])))
-contigs$p_end = sapply(contigs$chr, function(c) max(c(cytobands$End[cytobands$Chr == paste0('chr', c) & grepl('p', cytobands$Name)])))
-contigs$q_start = sapply(contigs$chr, function(c) min(c(cytobands$Start[cytobands$Chr == paste0('chr', c) & grepl('q', cytobands$Name)])))
-contigs$q_end = sapply(contigs$chr, function(c) max(c(cytobands$End[cytobands$Chr == paste0('chr', c) & grepl('q', cytobands$Name)])))
+contigs$p_start = sapply(contigs$chr, function(c) min(c(cytobands$Start[cytobands$Chr == c & grepl('p', cytobands$Name)])))
+contigs$p_end = sapply(contigs$chr, function(c) max(c(cytobands$End[cytobands$Chr == c & grepl('p', cytobands$Name)])))
+contigs$q_start = sapply(contigs$chr, function(c) min(c(cytobands$Start[cytobands$Chr == c & grepl('q', cytobands$Name)])))
+contigs$q_end = sapply(contigs$chr, function(c) max(c(cytobands$End[cytobands$Chr == c & grepl('q', cytobands$Name)])))
+
+pon$arm = sapply(pon$bin, function(b) {
+  ifelse(contigs$p_start[contigs$chr == pon$Chr[b]] <= pon$Start[b] &
+           pon$End[b] <= contigs$p_end[contigs$chr == pon$Chr[b]], 'p',
+         ifelse(contigs$q_start[contigs$chr == pon$Chr[b]] <= pon$Start[b] &
+                  pon$End[b] <= contigs$q_end[contigs$chr == pon$Chr[b]], 'q', NA))
+  })
 
 par(mar=c(2, 4, 1, 1))
 plot(pon$bin, pon$patient, ylim = c(0, qnorm(0.999, mean(pon$patient), sd(pon$patient))),
@@ -237,6 +244,11 @@ kable(karyotype_to_report$karyotype, col.names = NULL, align = "l", "html")
 ```{r new karyotyping}
 for(c in 1:nrow(contigs)){
   if(sum(pon$aberration[pon$Chr == contigs$chr[c]] == 'amp')/sum(pon$Chr == contigs$chr[c]) > 0.8) print(paste(c, 'amplifiziert'))
+  else if(sum(pon$aberration[pon$Chr == contigs$chr[c]] == 'del')/sum(pon$Chr == contigs$chr[c]) > 0.8) print(paste(c, 'deleted'))
+  else if(sum(pon$aberration[pon$Chr == contigs$chr[c] & !is.na(pon$arm) & pon$arm == 'p'] == 'amp')/sum(pon$Chr == contigs$chr[c]) > 0.8) print(paste(c, 'p amplified'))
+  else if(sum(pon$aberration[pon$Chr == contigs$chr[c] & !is.na(pon$arm) & pon$arm == 'p'] == 'del')/sum(pon$Chr == contigs$chr[c]) > 0.8) print(paste(c, 'p deleted'))
+  else if(sum(pon$aberration[pon$Chr == contigs$chr[c] & !is.na(pon$arm) & pon$arm == 'q'] == 'amp')/sum(pon$Chr == contigs$chr[c]) > 0.8) print(paste(c, 'q amplified'))
+  else if(sum(pon$aberration[pon$Chr == contigs$chr[c] & !is.na(pon$arm) & pon$arm == 'q'] == 'del')/sum(pon$Chr == contigs$chr[c]) > 0.8) print(paste(c, 'q deleted'))
 }
 ```
 

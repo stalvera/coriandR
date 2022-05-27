@@ -29,7 +29,7 @@ Meta data about the samples (`sample` and `gender`) are specified in the `r para
 
 ```{r, data_definition, echo = FALSE}
 # meta information with sample mapping files and genders
-meta = read.table(paste0(params$pon_name, ".meta.csv"), stringsAsFactors = F, header = TRUE, sep = ",")
+meta = read.table(paste0(params$pon_name, ".meta.csv"), stringsAsFactors = F, header = TRUE, sep = ",", colClasses = "character")
 row.names(meta) = meta$sample
 
 # raw PON counts
@@ -103,7 +103,7 @@ ponYm[, meta$sample[meta$gender != "M"]] = NA
 pon$gender = "neutral"
 
 pon = rbind(pon[!pon$Chr %in% c("chrX", "chrY"), ], ponXf, ponXm, ponYm)
-  
+
 pon$gender = factor(pon$gender)
 
 pon$bin = 1:nrow(pon)  # plain number all bins
@@ -117,8 +117,14 @@ contigs = contigs[order(as.numeric(contigs$chr)),]
 
 ```{r, Cumulative PON, echo = FALSE, fig.width = 12, fig.height = 5}
 # One idea is to sum all PON reads of a bin up and compare/test the raw numbers with the Patient. This can be done by Binomial testing, or Testing the Odds-Ratio.
+
 pon$sum = rowSums(pon[, meta$pon.col], na.rm=T)
 pon$mean = rowMeans(pon[, meta$pon.col], na.rm=T)
+pon[is.na(pon$mean), "mean"] = 0
+
+#plot(pon$bin, pon$mean, ylim = c(0, qnorm(0.999, mean(pon$mean), sd(pon$mean)), na.rm=TRUE),
+#     col = "#11111111", pch = 16, 
+#     xaxt="n", xlab="", las = 1, ylab="avg. read depth", xaxs="i")
 plot(pon$bin, pon$mean, ylim = c(0, qnorm(0.999, mean(pon$mean), sd(pon$mean))),
      col = "#11111111", pch = 16, 
      xaxt="n", xlab="", las = 1, ylab="avg. read depth", xaxs="i")

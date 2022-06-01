@@ -242,15 +242,15 @@ karyotype_to_report$karyotype = as.character(paste0(karyotype_to_report$aberrati
 
 ```{r karyotyping of whole chromosome arms and numerical chromosome changes}
 for(c in 1:nrow(contigs)){
-  if(sum(pon$aberration[pon$Chr == contigs$chr[c]] == 'amp')/sum(pon$Chr == contigs$chr[c]) > 0.8) karyotype_to_report[(nrow(karyotype_to_report) +1), "karyotype"] = as.character(paste('chr', c, 'amp'))
-  else if(sum(pon$aberration[pon$Chr == contigs$chr[c]] == 'del')/sum(pon$Chr == contigs$chr[c]) > 0.8) karyotype_to_report[(nrow(karyotype_to_report) +1), "karyotype"] = as.character(paste('chr', c, 'del'))
+  if(sum(pon$aberration[pon$Chr == contigs$chr[c]] == 'amp')/sum(pon$Chr == contigs$chr[c]) > 0.8) karyotype_to_report[(nrow(karyotype_to_report) +1), "karyotype"] = as.character(paste('$+$', c))
+  else if(sum(pon$aberration[pon$Chr == contigs$chr[c]] == 'del')/sum(pon$Chr == contigs$chr[c]) > 0.8) karyotype_to_report[(nrow(karyotype_to_report) +1), "karyotype"] = as.character(paste('$-$', c))
   # numerical chromosome changes
   
-  else if(sum(pon$aberration[pon$Chr == contigs$chr[c] & !is.na(pon$arm) & pon$arm == 'p'] == 'amp')/sum(pon$Chr == contigs$chr[c] & !is.na(pon$arm) & pon$arm == 'p') > 0.8) karyotype_to_report[(nrow(karyotype_to_report) +1), "karyotype"] = as.character(paste(c, 'p amp'))
-  else if(sum(pon$aberration[pon$Chr == contigs$chr[c] & !is.na(pon$arm) & pon$arm == 'p'] == 'del')/sum(pon$Chr == contigs$chr[c] & !is.na(pon$arm) & pon$arm == 'p') > 0.8) karyotype_to_report[(nrow(karyotype_to_report) +1), "karyotype"] = as.character(paste(c, 'p del'))
-  else if(sum(pon$aberration[pon$Chr == contigs$chr[c] & !is.na(pon$arm) & pon$arm == 'q'] == 'amp')/sum(pon$Chr == contigs$chr[c]& !is.na(pon$arm) & pon$arm == 'q') > 0.8) karyotype_to_report[(nrow(karyotype_to_report) +1), "karyotype"] = as.character(paste(c, 'q amp'))
-  else if(sum(pon$aberration[pon$Chr == contigs$chr[c] & !is.na(pon$arm) & pon$arm == 'q'] == 'del')/sum(pon$Chr == contigs$chr[c] & !is.na(pon$arm) & pon$arm == 'q') > 0.8) karyotype_to_report[(nrow(karyotype_to_report) +1), "karyotype"] = as.character(paste(c, 'q del'))
-    # whole chromosome arms is del or amp
+  else if(sum(pon$aberration[pon$Chr == contigs$chr[c] & !is.na(pon$arm) & pon$arm == 'p'] == 'amp')/sum(pon$Chr == contigs$chr[c] & !is.na(pon$arm) & pon$arm == 'p') > 0.8) karyotype_to_report[(nrow(karyotype_to_report) +1), "karyotype"] = as.character(paste('$+$', c, 'p'))
+  else if(sum(pon$aberration[pon$Chr == contigs$chr[c] & !is.na(pon$arm) & pon$arm == 'p'] == 'del')/sum(pon$Chr == contigs$chr[c] & !is.na(pon$arm) & pon$arm == 'p') > 0.8) karyotype_to_report[(nrow(karyotype_to_report) +1), "karyotype"] = as.character(paste('$-$', c, 'p'))
+  else if(sum(pon$aberration[pon$Chr == contigs$chr[c] & !is.na(pon$arm) & pon$arm == 'q'] == 'amp')/sum(pon$Chr == contigs$chr[c]& !is.na(pon$arm) & pon$arm == 'q') > 0.8) karyotype_to_report[(nrow(karyotype_to_report) +1), "karyotype"] = as.character(paste('$+$', c, 'q'))
+  else if(sum(pon$aberration[pon$Chr == contigs$chr[c] & !is.na(pon$arm) & pon$arm == 'q'] == 'del')/sum(pon$Chr == contigs$chr[c] & !is.na(pon$arm) & pon$arm == 'q') > 0.8) karyotype_to_report[(nrow(karyotype_to_report) +1), "karyotype"] = as.character(paste('$-$', c, 'q'))
+    # whole chromosome arms is del or add
 }
 
 

@@ -1,5 +1,5 @@
-name 	120517.test.mr
-gender 	male
+name 	10213
+gender 	female
 count_data 	patient.fc.tsv
 mapping_stats 	mapping.stats.tsv
 pon 	pon.tsv

@@ -1,7 +1,12 @@
 
 coriandR
 ===========
-coriandR: ChrOmosomal abeRration Identifier AND Reporter in R is a tool for numerical Karyotype and CNAs estimation from lcWGS sequencing (low coverage whole genome sequencing).
+`coriandR`: ChrOmosomal abeRration Identifier AND Reporter in R is a tool for numerical Karyotype and CNAs estimation from lcWGS sequencing (low coverage whole genome sequencing).
+
+`coriandR` is a read-depth based tool for numerical karyotype and CNA estimation from the raw
+reads of the low coverage WGS sequencing. We use a panel of normals to identify and reduce
+technical artifacts. The samples for the panel of normals were obtained and sequenced under the
+same conditions as the tumor samples.
 
 
 
@@ -10,7 +15,7 @@ Dependencies
 - bowtie2 (Langmead and Salzberg 2012)
 - samtools (Li 2011)
 - featureCounts (Liao et al. 2014)
-- sam2bam
+- sam2bam (https://github.com/thoelken/bioinfo-toolbox)
 - RStudio (https://www.rstudio.com/products/rstudio/download/) (knitr, markdown, rmarkdown, tinytex packages) 
 
 
@@ -21,6 +26,14 @@ Install sam2bam.sh in folder `~/bin` and make the skript executable with `chmod 
 
 Adjust the paths to the files Bowtie2 index, gc-content, your pon table and bins.gtf in `config.txt`.
 
+
+
+Data preparation
+============
+The sequencing data from Illumina MiSeq was aligned to the reference genome with `Bowtie 2` (Langmead and Salzberg 2012) in paired-end mode. We used version GRCh38.p13 of the
+human genome from Genome Reference Consortium as reference genome for alignment. The data
+was converted to BAM format using `samtools` (Li 2011). We count the reads in the non-
+overlapping megabase sized bins using `featureCounts` (Liao et al. 2014).
 
 
 Running the program

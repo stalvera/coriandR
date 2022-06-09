@@ -1,10 +1,10 @@
 
 coriandR
 ===========
-`coriandR`: ChrOmosomal abeRration Identifier AND Reporter in R is a tool for numerical Karyotype and CNAs estimation from lcWGS sequencing (low coverage whole genome sequencing).
+`coriandR`: ChrOmosomal abeRration Identifier AND Reporter in R is a tool for numerical karyotype and CNAs estimation from lcWGS sequencing (low coverage whole genome sequencing).
 
 `coriandR` is a read-depth based tool for numerical karyotype and CNA estimation from the raw
-reads of the low coverage WGS sequencing. We use a panel of normals to identify and reduce
+reads of the low coverage WGS sequencing. We use a panel of normals (PON) to identify and reduce
 technical artifacts. The samples for the panel of normals were obtained and sequenced under the
 same conditions as the tumor samples.
 
@@ -22,18 +22,17 @@ Dependencies
 
 Install
 ============
-Install sam2bam.sh in folder `~/bin` and make the skript executable with `chmod +x ~/bin/am2bam.sh`
+Install `sam2bam.sh` in folder `~/bin` and make the skript executable with `chmod +x ~/bin/sam2bam.sh` in terminal.
 
-Adjust the paths to the files Bowtie2 index, gc-content, your pon table and bins.gtf in `config.txt`.
+Adjust the paths to the files Bowtie2 index, gc-content, your PON table and bins.gtf in `config.txt` file.
 
 
 
 Data preparation
 ============
-The sequencing data from Illumina MiSeq was aligned to the reference genome with `Bowtie 2` (Langmead and Salzberg 2012) in paired-end mode. We used version GRCh38.p13 of the
+The sequencing data from Illumina MiSeq was aligned to the reference genome with `Bowtie 2` (Langmead and Salzberg 2012) in paired-end mode (.fastq files). We used version GRCh38.p13 of the
 human genome from Genome Reference Consortium as reference genome for alignment. The data
-was converted to BAM format using `samtools` (Li 2011). We count the reads in the non-
-overlapping megabase sized bins using `featureCounts` (Liao et al. 2014).
+was converted to BAM format using `samtools` (Li 2011). We count the reads in the non-overlapping megabase sized bins using `featureCounts` (Liao et al. 2014).
 
 
 Running the program
@@ -42,22 +41,22 @@ Running the program
 Creation of panel of normals
 -----------
 
-1. Prepare the table with meta data: the table contains columns with the names "sample", "gender" and rows with the names of the samples (sample1.pon.bam) that make up your PoN and the genders of the samples (M/F). Use the table `pon.meta.csv`.
+1. Prepare the table with meta data: the table contains columns with the names "sample", "gender" and rows with the names of the samples `sample1.pon.bam` that make up your PON and the genders of the samples (`M`/`F`). Use the table `pon.meta.csv`.
 2. Create a folder with only the paired-end fastq files and the meta table.
 3. Open the `~/coriandR/coriandR` folder in terminal.
-4. To start the tool pon.creator.sh enter the following parameters in the console: name of panel of normals; Path to folder with paired-end fastq-files; Path to meta table (gender table).
+4. To start the tool `pon.creator.sh` enter the following parameters in terminal: name of panel of normals; Path to folder with paired-end fastq-files; Path to meta table (gender table).
 **Example use:**
     `bash pon_creator.sh sample.pon ~/sequence.data/sample.pon/ ~/sequence.data/sample.pon/pon.meta.csv`
 5. Copy the file sample.pon.tsv to `~/coriandR/coriandR/tables` folder
-6. Now you have to change the path to your new PoN in the `config.txt` file if you want to use this new PON. The BAM files are automatically deleted.
+6. Now you have to change the path to your new PON in `config.txt` file if you want to use this new PON. The BAM files are automatically deleted.
 
 
-Numerical Karyotype and CNAs estimation from a tumor sample
+Numerical karyotype and CNAs estimation from a tumor sample
 -----------
 
-1. First create the patient.meta.tsv file or modify the existing file. This table contains the parameters "name", "gender", "count_data", "mapping_stats", "pon", "output_prefix". You can edit the existing file by entering the name of the sample and the gender. Save the file in the `~/coriandR/coriandR` folder.
+1. First modify the existing `patient.meta.tsv` file. This table contains the parameters "name", "gender", "count_data", "mapping_stats", "pon", "output_prefix". You can edit the existing file by entering the name of the sample and the gender. Save the file in the `~/coriandR/coriandR` folder.
 2. Open the `~/coriandR/coriandR` folder in terminal.
-3. To start the coriandr.sh tool, enter the following parameters in the console: Sample ID; Path to sample meta file; FASTQ1: a path to the fastq-File with Read 1; FASTQ2: a path to the fastq-File with Read 2.
+3. To start the `coriandr.sh` tool, enter the following parameters in terminal: Sample ID; Path to sample meta file; FASTQ1: a path to the fastq-File with Read 1; FASTQ2: a path to the fastq-File with Read 2.
 **Example use:** 
     `bash coriander.sh 101010 /media/data/101010.meta.tsv /media/data/Fastq/101010_R1.fastq /media/data/Fastq/101010_R2.fastq`
 4. Thenafter you can find the created report in `./coriandR/output/SampleID` folder. The BAM files are automatically deleted.

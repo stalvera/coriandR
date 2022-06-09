@@ -23,7 +23,7 @@ for f in *_R1_001.fastq.gz; do n=$(echo $f | sed 's/_R1_001.fastq.gz//') ; echo 
 printf "was successful\n \n"
 
 printf "PON subjects read-table ... "
-~/bin/subread-2.0.0-source/bin/featureCounts -a $gtf -o pon.fc.tsv -T $(nproc) *.bam 2> logs.featureCounts.txt
+featureCounts -a $gtf -o pon.fc.tsv -T $(nproc) *.bam 2> logs.featureCounts.txt
 printf "was created with FeatureCounts\n \n "
 
 printf "GC content of the PON subjects ... "

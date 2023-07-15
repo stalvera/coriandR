@@ -8,7 +8,7 @@ reads of the low coverage WGS sequencing. We use a panel of normals (PON) to ide
 technical artifacts. The samples for the panel of normals were obtained and sequenced under the
 same conditions as the tumor samples.
 
-
+Tarawneh, T.S.; Rodepeter, F.R.; Teply-Szymanski, J.; Ross, P.; Koch, V.; Thölken, C.; Schäfer, J.A.; Gremke, N.; Mack, H.I.D.; Gold, J.; et al. Combined Focused Next-Generation Sequencing Assays to Guide Precision Oncology in Solid Tumors: A Retrospective Analysis from an Institutional Molecular Tumor Board. Cancers 2022, 14, 4430. https://doi.org/10.3390/cancers14184430 
 
 Dependencies
 -----------
@@ -72,6 +72,8 @@ The investigated genes are based on the list of the WHO classification of acute 
 
 References
 =================
+Tarawneh, T.S.; Rodepeter, F.R.; Teply-Szymanski, J.; Ross, P.; Koch, V.; Thölken, C.; Schäfer, J.A.; Gremke, N.; Mack, H.I.D.; Gold, J.; et al. Combined Focused Next-Generation Sequencing Assays to Guide Precision Oncology in Solid Tumors: A Retrospective Analysis from an Institutional Molecular Tumor Board. Cancers 2022, 14, 4430. https://doi.org/10.3390/cancers14184430 
+
 Bailey, Matthew H.; Tokheim, Collin; Porta-Pardo, Eduard; Sengupta, Sohini; Bertrand, Denis; Weerasinghe, Amila et al. (2018): Comprehensive Characterization of Cancer Driver Genes and Mutations. In: Cell 173 (2), 371-385.e18. DOI: 10.1016/j.cell.2018.02.060.
 
 Ben Langmead; Steven L Salzberg (2012): Fast gapped-read alignment with Bowtie 2. In: Nat Methods 9 (4), S. 357–359. DOI: 10.1038/nmeth.1923.

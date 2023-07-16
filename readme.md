@@ -1,3 +1,8 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
 
 coriandR
 ===========
@@ -26,6 +31,7 @@ Install `sam2bam.sh` in folder `~/bin` and make the skript executable with `chmo
 
 Adjust the paths to the files Bowtie2 index, gc-content, your PON table and bins.gtf in `config.txt` file.
 
+Adjust the paths to Bowtie2, samtools, FeatureCounts and sam2bam.sh script.
 
 
 Data preparation
@@ -50,6 +56,8 @@ Creation of panel of normals
 5. Copy the file sample.pon.tsv to `~/coriandR/coriandR/tables` folder
 6. Now you have to change the path to your new PON in `config.txt` file if you want to use this new PON. The BAM files are automatically deleted.
 
+![PON Overview with masked bins by abnormal variance or abnormal gc-content](masked_bins_by_variance_or_gccontent.png)
+
 
 Numerical karyotype and CNAs estimation from a tumor sample
 -----------
@@ -61,6 +69,7 @@ Numerical karyotype and CNAs estimation from a tumor sample
     `bash coriander.sh 101010 /media/data/101010.meta.tsv /media/data/Fastq/101010_R1.fastq /media/data/Fastq/101010_R2.fastq`
 4. Thenafter you can find the created report in `./coriandR/output/SampleID` folder. The BAM files are automatically deleted.
 
+![Numerical caryotype overview of a sample with a chromosome 7 lost](complexe_caryotype_overview_aberrations.png)
 
 
 Numerical Karyotype and CNAs estimation

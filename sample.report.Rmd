@@ -8,16 +8,14 @@ params:
 
 
 ```{r setup, include=FALSE}
-#knitr::opts_knit$set(root.dir = "/home/vera/dissertation/test.report.coriandR/")
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
-#knitr::opts_chunk$set(dev = "png", dev.args = list(type = "cairo-png"))
 knitr::opts_chunk$set(dev = 'pdf')
 
 library(knitr)
 ```
 
 
-```{r patient meta data, echo = FALSE}
+```{r sample meta data, echo = FALSE}
 patient.meta = data.frame(t(read.table(paste0(as.character(params$data), ".meta.tsv"), stringsAsFactors = F, row.names=1)))
 if(tolower(patient.meta$gender) %in% c("f", "female")) {
   patient.meta$gender = "f"
@@ -149,7 +147,6 @@ pat.dens = density(pon$pat.z, na.rm=T)
 # Presentation of patient Z-values compared to estimated PON distribution
 plot(seq(from=-20, to=20, by=0.1), dnorm(seq(from=-20, to=20, by=0.1)), type='l', col="gray",
      main="Patient Z-values compared to estimated PON distribution", ylab="Density", xlab="Z-value", ylim=c(0, max(pat.dens$y)))
-#lines(density((pon$norm.clean.mean-1)/sd, na.rm=T), col="blue")
 lines(pat.dens, col="black")
 legend("topright", legend=c("theoretical Z-Distribution", "Patient"), col=c("gray", "black"), lty=1, cex=0.7)
 
@@ -297,7 +294,7 @@ par(mar=c(4, 4, 0.5, 5.5))
 for(i in unique(pon$Chr)) {
   with(pon[pon$Chr == i,], {
     plot(Start, ifelse(patient.norm > 2.5, 5, patient.norm*2), col = ifelse(blocked, 0, c("black", "blue", "red")[aberration]), ylim=c(0,5), xlim=c(0,max(End)), xaxt='n', xaxs="i", xlab='', ylab='Ploidy', pch=ifelse(patient.norm > 2.5, 17, 20), las=2)
-    segments(Start, (norm.clean.median+norm.clean.sd*3)*2, Start, (norm.clean.median-norm.clean.sd*3)*2, col="#aaaaaaaa")
+    segments(Start, (norm.clean.median+norm.clean.iqr)*2, Start, (norm.clean.median-norm.clean.iqr)*2, col="#aaaaaaaa")
     #mag = floor(log10(max(End)))
     #xmax = floor(max(End)/10^mag+1)*10^mag
     axis(1, seq(0, 10^9, by=2*10^7), paste(seq(0, 1000, by=20), "Mbp"), line=2, tck=-0.05)

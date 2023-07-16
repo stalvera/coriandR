@@ -1,5 +1,5 @@
-name 	10213
-gender 	female
+name 	AML6
+gender 	male
 count_data 	patient.fc.tsv
 mapping_stats 	mapping.stats.tsv
 pon 	pon.tsv

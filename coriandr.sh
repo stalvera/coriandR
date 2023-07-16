@@ -18,11 +18,11 @@ printf "raw_read_pairs\t" > output/$1/mapping.stats.tsv; zcat $3 | awk 'NR%4==2{
 printf "were generated\n \n"
 
 printf "\033[1;32m Mapping with Bowtie2 in pair-end mode \e[0m ... \n"
-bowtie2 -x $index -p $(nproc) -1 $3 -2 $4 | bash ~/bin/sam2bam.sh output/$1/patient.bam 2> output/$1/logs.bowtie.txt
+bowtie2 -x $index -p $(nproc) -1 $3 -2 $4 | bash sam2bam.sh output/$1/patient.bam 2> output/$1/logs.bowtie.txt
 printf "was successful\n \n"
 
 printf "\033[1;32m Sample counts table \e[0m ... \n"
-featureCounts -a $gtf -o output/$1/patient.fc.tsv -T $(nproc) output/$1/patient.bam 2> output/$1/logs.featureCounts.txt
+featureCounts -a $gtf -o output/$1/patient.fc.tsv output/$1/patient.bam -T $(nproc) --countReadPairs -p 2> output/$1/logs.featureCounts.txt
 printf "was created with FeatureCounts\n \n"
 
 cp -p -v sample.report.Rmd output/$1/.

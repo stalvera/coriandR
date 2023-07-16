@@ -27,7 +27,7 @@ Per default raw read counts per library are counted with `featureCounts` for the
 
 Meta data about the samples (`sample` and `gender`) are specified in the `r params$pon_name`.`meta.tsv` file separated by comma (`,`) by the user.
 
-```{r, data_definition, echo = FALSE}
+```{r, data definition, echo = FALSE}
 # meta information with sample mapping files and genders
 meta = read.table(paste0(params$pon_name, ".meta.csv"), stringsAsFactors = F, header = TRUE, sep = ",", colClasses = "character")
 row.names(meta) = meta$sample
@@ -61,7 +61,7 @@ Optimally all samples should be well above 100 and within the red dotted lines, 
 
 Gender annotation of the samples should match distributions with one single cluster in females (F) or two distinctive clusters for autosomes and single copy X and Y chromosomes in males (M).
 
-```{r, Reading in the PON and Patient counts, warning=F, fig.height=12, fig.width=7, echo = FALSE}
+```{r, sample read counting, warning=F, fig.height=12, fig.width=7, echo = FALSE}
 par(mar=c(3, 15, 1, 3), cex=0.7)
 plot(c(t(pon[ ,meta$pon.col])), rep(1:nrow(meta), nrow(pon)),
      log = "x", xlab="Read depth", ylab="", yaxt = "n",
@@ -81,7 +81,8 @@ Bins with counts outside of 99% of the normal distribution are marked in red. Th
 
 The values of gonosomes for men and women are represented: (from left to right) X male, X female, Y male, Y female. 
 
-```{r, PON gender segregation, echo = FALSE, warning=F}
+```{r, gender segregation in PON, echo = FALSE, warning=F}
+# somatic chromosomes are in "both" PONs, the gonosomes are only in female or male PONs included
 pon$ploidy = 2
 ponXf = pon[pon$Chr == "chrX", ]
 ponXf$Chr = "chrX_F"
@@ -122,9 +123,6 @@ pon$sum = rowSums(pon[, meta$pon.col], na.rm=T)
 pon$mean = rowMeans(pon[, meta$pon.col], na.rm=T)
 pon[is.na(pon$mean), "mean"] = 0
 
-#plot(pon$bin, pon$mean, ylim = c(0, qnorm(0.999, mean(pon$mean), sd(pon$mean)), na.rm=TRUE),
-#     col = "#11111111", pch = 16, 
-#     xaxt="n", xlab="", las = 1, ylab="avg. read depth", xaxs="i")
 plot(pon$bin, pon$mean, ylim = c(0, qnorm(0.999, mean(pon$mean), sd(pon$mean))),
      col = "#11111111", pch = 16, 
      xaxt="n", xlab="", las = 1, ylab="avg. read depth", xaxs="i")
@@ -184,6 +182,7 @@ points(rep(0.25, sum(pon$gc < 0.25)), pon$nnorm.var[pon$gc < 0.25], pch="<", col
 points(pon$gc[!is.na(pon$nnorm.var) & pon$nnorm.var > 0.2], rep(0.2, sum(!is.na(pon$nnorm.var) & pon$nnorm.var > 0.2)), pch="^", col=ifelse(pon$gc_blocked, "tomato3", "#11111122")[!is.na(pon$nnorm.var) & pon$nnorm.var > 0.2])
 gc.var = predict(loess(nnorm.var ~ gc, pon[pon$gc > 0.35 & pon$gc < 0.6,], span=0.5), 350:600/1000)
 lines(350:600/1000, gc.var, col="blue")
+# Bins with a GC-content < the 0.275 percentile genome-wide assumed normal distribution or with variance > 0.2 were considered to be extreme and masked from the PON
 
 plot(rep(pon$gc, ncol(pon.norm)), c(as.matrix(pon.norm)*pon$ploidy), pch=20, xlim=c(0.25, 0.6), ylim=c(0, 4),
      col = ifelse(pon$gc_blocked, "tomato3", "#11111111"),
@@ -207,6 +206,7 @@ pon$norm.clean.mean = rowMeans(pon.norm.clean, na.rm=T)
 pon$norm.clean.median = c(apply(pon.norm.clean, 1, median, na.rm=T))
 pon$norm.clean.var = c(apply(pon.norm.clean, 1, var, na.rm=T))
 pon$norm.clean.sd = c(apply(pon.norm.clean, 1, sd, na.rm=T))
+pon$norm.clean.iqr = c(apply(pon.norm.clean, 1, IQR, na.rm=T))
 pon$var_blocked = pon$sum < 1 | (!is.na(pon$norm.clean.var) & pon$norm.clean.var > qnorm(0.99, mean(pon$norm.clean.var[!pon$gc_blocked], na.rm=T), sd(pon$norm.clean.var[!pon$gc_blocked], na.rm=T)))
 pon$blocked = pon$var_blocked | pon$gc_blocked
 

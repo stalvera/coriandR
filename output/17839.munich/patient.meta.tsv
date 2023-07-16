@@ -1,6 +1,0 @@
-"name"	"17839.munich"
-"gender"	"male"
-"count_data"	"/media/vera/big_data/coriandR/output/17839.munich/patient.fc.tsv"
-"mapping_stats"	"//media/vera/big_data/coriandR/output/17839.munich/mapping.stats.tsv"
-"pon"	"/media/vera/big_data/coriandR/output/17839.munich/pon.tsv"
-"output_prefix"	"/output/17839"

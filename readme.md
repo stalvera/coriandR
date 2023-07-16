@@ -65,6 +65,7 @@ Numerical karyotype and CNAs estimation from a tumor sample
 4. Thenafter you can find the created report in `./coriandR/output/SampleID` folder. The BAM files are automatically deleted.
 
 ![Numerical caryotype overview of a sample with a chromosome 7 lost](complexe_caryotype_overview_aberrations.png)
+![Chromosome plot with partial 5q deletion](chromosome5_q_deletion.png)
 
 
 Numerical Karyotype and CNAs estimation

@@ -1,6 +1,6 @@
 ---
 title: "coriandR: Panel of Normals"
-subtitle: "Report"
+subtitle: "Report for creation of a new PON"
 date: "`r format(Sys.time(), '%d-%m-%Y')`"
 output: pdf_document
 params:
@@ -9,9 +9,9 @@ params:
 
 # Generating PON: "`r params$pon_name`"
 
-This report documents the creation of the Panel of Normals (PON) from sequencing runs of healthy individuals, which is later used in Copy Number Variantion analysis of single patient data on the same sequencing platform with `coriandR`.
+This report documents the creation of the Panel of Normals (PON) from sequencing runs of healthy individuals, which is later used for estimation of calculated karyotype and copy number variations (CNV) in hamatological malignances and solid tumours in research with `coriandR`.
 
-This PON has to be generated only once, mapping at least three healthy sequencing libraries against the human genome using `bowtie2` and counted with `featureCounts` as specified in the accompanying documentation.
+A panel of normals (PON) contains sequencing data from individuals with a normal karyotype who are representative for the analysed population. Multiple samples are used to compensate for or identify technical artefacts and normal biological variability. It is also important that the samples are obtained and processed under the same conditions (same sample preparation methods like DNA extraction and sequencing technology) as the test samples. Using the read depth method, distribution of the reads in samples can be calculated for PON and test samples, which can be used to estimate abberations like CNVs.
 
 ```{r, include=FALSE}
 library(knitr)
@@ -28,40 +28,42 @@ Per default raw read counts per library are counted with `featureCounts` for the
 Meta data about the samples (`sample` and `gender`) are specified in the `r params$pon_name`.`meta.tsv` file separated by comma (`,`) by the user.
 
 ```{r, data definition, echo = FALSE}
-# meta information with sample mapping files and genders
+# input meta information with sample mapping files and genders
 meta = read.table(paste0(params$pon_name, ".meta.csv"), stringsAsFactors = F, header = TRUE, sep = ",", colClasses = "character")
 row.names(meta) = meta$sample
 
-# raw PON counts
+# input raw PON reads counts
+# error if PON meta file and featureCounts table have different number or names of samples
 pon = read.table(paste0(params$pon_name, ".fc.tsv"), header = TRUE, stringsAsFactors = T)
 if(nrow(meta) != ncol(pon)-6) {
-  print("PON meta file and featureCounts of PON have different number of samples")
+  print("PON meta file and featureCounts table have different number of samples")
   knitr::knit_exit()
 }
 
 meta$pon.col = as.vector(as.numeric(sapply(meta$sample, function(x) grep(gsub("-", ".", x), names(pon)), simplify=T)))
 if(any(is.na(meta$pon.col))) {
-  print("PON meta file and featureCounts of PON have different names of samples")
+  print("PON meta file and featureCounts table have different names of samples")
   knitr::knit_exit()
 }
 
 # rename PON colums of samples
 names(pon)[meta$pon.col] = meta$sample
 
-# GC-content calculated by bedtools
+# input GC content for human calculated by bedtools
 gc = read.table("GRCh38.p13.genome.1M.nucl", stringsAsFactors = T)
+# we don`t consider the reads on mitochondrial genome
 pon$gc = gc[gc$V1 != 'chrM', 5]
 ```
 
 
 ### Sequencing depth of individual PON subjects
-The following plot shows the sequencing depth of different PON libraries on a logarithmic scale per megabase.
 
-Optimally all samples should be well above 100 and within the red dotted lines, representing $1/4$ and $4$ times the **median** sequencing depth.
+The following plot shows the sequencing depth in different PON subjects on a log10 scale per megabase (x-axis) for each PON subject with subject ID on the left y-axis and the gender (F/M) from `r params$pon_name`.`meta.tsv` file on the right y-axis. Gender annotation of the samples should match distributions with one single points cluster in females (F) or two distinctive clusters of data points for autosomes and single copy of X and Y chromosomes in males (M).
 
-Gender annotation of the samples should match distributions with one single cluster in females (F) or two distinctive clusters for autosomes and single copy X and Y chromosomes in males (M).
+In optimal case, all samples should be above 100 on x-axis and inside the red dotted lines representing $1/4$ and $4$ times the median sequencing depth overall all PON subjects for control of sequencing depth for each sample.
 
 ```{r, sample read counting, warning=F, fig.height=12, fig.width=7, echo = FALSE}
+# Display the read distribution per sample in all PON subjects in one plot
 par(mar=c(3, 15, 1, 3), cex=0.7)
 plot(c(t(pon[ ,meta$pon.col])), rep(1:nrow(meta), nrow(pon)),
      log = "x", xlab="Read depth", ylab="", yaxt = "n",
@@ -73,13 +75,10 @@ axis(2, 1:nrow(meta), las = 1, meta$sample)
 
   
 ### Cumulative PON
-For later statistics the read counts of the PON are summed up over each bin.
 
-Ideally, autosomes show up as a straight line of dots with minimal noise well above a read depth of at least 1000 reads per megabase.
+For later statistical testings the read counts of the PON are summed up for each bin. The reads on autosomal chromosomes are used for the further analysis of both genders, while the reads on the X and Y chromosomes are only used as a statistical reference for the same gender.
 
-Bins with counts outside of 99% of the normal distribution are marked in red. These should probably be masked in the end.
-
-The values of gonosomes for men and women are represented: (from left to right) X male, X female, Y male, Y female. 
+Here, read depth is displayed on the y-axis, the genomic coordinates in each chromosome on x-axis. Ideally, the reads located in autosomes are displayed as a straight line of data points with minimal noise above a read depth of at least 1000 reads per megabase (in black colour). Bins with counts outside of 99% of the normal distribution are marked in red colour. These should be masked in the step [Masking bins with extreme GC-content and high variance](#Masking-bins-with-extreme-GC-content-and-high-variance). The values for gonosomes for men and women are represented by (from left to right): X male, X female, Y male, Y female. 
 
 ```{r, gender segregation in PON, echo = FALSE, warning=F}
 # somatic chromosomes are in "both" PONs, the gonosomes are only in female or male PONs included
@@ -109,7 +108,7 @@ pon$gender = factor(pon$gender)
 
 pon$bin = 1:nrow(pon)  # plain number all bins
 
-# chromosome names and middle coordinates of each for axis drawing
+# chromosome names and middle coordinates of each axis in plot
 contigs = data.frame(pos=tapply(pon$bin, pon$Chr, mean))
 contigs$chr = gsub("chr", "", rownames(contigs))
 contigs = contigs[order(as.numeric(contigs$chr)),]
@@ -117,7 +116,7 @@ contigs = contigs[order(as.numeric(contigs$chr)),]
 
 
 ```{r, Cumulative PON, echo = FALSE, fig.width = 12, fig.height = 5}
-# One idea is to sum all PON reads of a bin up and compare/test the raw numbers with the Patient. This can be done by Binomial testing, or Testing the Odds-Ratio.
+# One idea is to sum all PON reads of a bin up and compare/test the raw numbers with the patient data. This can be done by binomial testing, or testing the odds ratio.
 
 pon$sum = rowSums(pon[, meta$pon.col], na.rm=T)
 pon$mean = rowMeans(pon[, meta$pon.col], na.rm=T)
@@ -132,15 +131,14 @@ with(contigs[(1:(nrow(contigs)/2))*2-1, ], axis(side=1, labels=chr, at=pos, line
 ```
 
 
-## Normalizing PON by library size and per megabase
-In order to compare the quality of multiple PONs, read depth is normalized by overall library size and then by the median for each megabase.
+## Normalising of PON by library size and per megabase
 
-The genome plot should result in a tight distribution arount the ploidy of 2.
+In order to make multiple PONs comparable, read depth is normalised by total library size and then by the median for each megabase. The ploidy of reads located in chromosomes is displayed on the y-axis, the genomic coordinates in each chromosome on x-axis in this plot.
 
-Gonosomes are shifted to match a ploidy of 2 in males to facilitate comparability.
+The genome plot should show a distribution of reads around the ploidy of 2. The reads for gonosomes are shifted to meet the ploidy of 2 in males in order to simplify comparability.
 
-```{r, Plotted over all chromosomes, echo = FALSE, fig.width = 12, fig.height = 5}
-# Normalizing to a ploidity of 2, the PON looks much more straight forward aside from the samples with a second mode at 1 (gonosomes).
+```{r, Plot for overview of all chromosomes, echo = FALSE, fig.width = 12, fig.height = 5}
+# Normalising of PON reads to a ploidy of 2
 pon.norm = pon[, meta$pon.col]
 pon.norm = data.frame(t(t(pon.norm)/apply(pon.norm, 2, median, na.rm=T)))
 pon$norm.median = apply(pon.norm, 1, median, na.rm=T)
@@ -157,18 +155,22 @@ segments(c(0, 0, min(pon$bin[pon$Chr == "chrX_M"]), min(pon$bin[pon$Chr == "chrX
 axis(4, 0:4, 0:4, las=2)
 ```
 
-
 \newpage
-## Masking bins with extreme GC-content and high variance
-Some of the variance in bin counts might be due to uneven GC-content per bin.
-GC-bias based on bedtools nucl statistics for same genome and same bins.
 
-Plotting the GC-content vs normalized bin counts: We see hardly any influence of GC content on the data.
-If GC content has little influence on variance, a large cigar-shaped point cloud appears at 2. 
-If the GC content has a high influence on the reads, a diagonal or a banana-shaped curve can be seen. 
+## Masking bins with extreme gc content and high variance
+
+To improve the quality of the PON and to minimize technical artifacts, we identify the bins with a gc content that deviates from the expected value for the human genome. We determined the gc content of the human reference genome using Bedtools v2.27.1 (Quinlan 2014).
+
+**Plot of the gc content (x-axis) against variance (left plot) and ploidy (right plot) in normalised bin counts in PON:**
+
+Bins with a gc content less than the 0.275 percentile genome-wide assumed normal distribution are considered to be extreme, marked in red colour in the plot and masked from the PON, that means that they are not considered for further statistical testings.
+
+- If gc content has a slight influence on variance of reads, a cigar-shaped cluster of data points appears at the ploidy of 2. 
+- If gc content has a high influence on variance of reads, a diagonal or a banana-shaped cluster of data points can be observed. It may indicate a technical artifact in library preparation. 
+
+**References:**
 
 Quinlan A. R. (2014). BEDTools: The Swiss-Army Tool for Genome Feature Analysis. Current protocols in bioinformatics, 47, 11.12.1–11.12.34. doi: 10.1002/0471250953.bi1112s47.
-
 
 ```{r, plot GC-content, echo = FALSE, fig.width = 7, fig.height = 3}
 pon$nnorm.var = c(apply(pon.nnorm, 1, var, na.rm=T))
@@ -177,7 +179,7 @@ par(mfrow=c(1,2))
 
 plot(pon$gc, pon$nnorm.var, pch=20, ylim=c(0.0001, 0.2), xlim=c(0.25, 0.6),
      col=ifelse(pon$gc_blocked, "tomato3", "#11111111"),
-     xlab="GC-content", ylab="Variance", las = 1, cex = 0.5)
+     xlab="gc content", ylab="variance", las = 1, cex = 0.5)
 points(rep(0.25, sum(pon$gc < 0.25)), pon$nnorm.var[pon$gc < 0.25], pch="<", col="tomato3")
 points(pon$gc[!is.na(pon$nnorm.var) & pon$nnorm.var > 0.2], rep(0.2, sum(!is.na(pon$nnorm.var) & pon$nnorm.var > 0.2)), pch="^", col=ifelse(pon$gc_blocked, "tomato3", "#11111122")[!is.na(pon$nnorm.var) & pon$nnorm.var > 0.2])
 gc.var = predict(loess(nnorm.var ~ gc, pon[pon$gc > 0.35 & pon$gc < 0.6,], span=0.5), 350:600/1000)
@@ -186,15 +188,13 @@ lines(350:600/1000, gc.var, col="blue")
 
 plot(rep(pon$gc, ncol(pon.norm)), c(as.matrix(pon.norm)*pon$ploidy), pch=20, xlim=c(0.25, 0.6), ylim=c(0, 4),
      col = ifelse(pon$gc_blocked, "tomato3", "#11111111"),
-     xlab="GC-content", ylab="Ploidy", las = 1, cex = 0.5)
+     xlab="gc content", ylab="ploidy", las = 1, cex = 0.5)
 abline(h=c(1.5, 2.5), col="red", lty=2)
 ```
 
-Bins with extreme GC-content are marked in red.
+# Masking of bins with a high variance, deviating gc content or both
 
-
-# Masking high variance bins
-The bins that were excluded from the statistical calculations are shown in color: due to very low GC-content (red), due to high variance (blue), or both (purple).
+The ploidy of reads located in chromosomes is displayed on the y-axis, the genomic coordinates in each chromosome on x-axis. This plot displays the bins (a window with size of one megabasewith counted reads in it) that are excluded from the statistical testings in different colours: very low GC-content (red), high variance (blue), or both (purple). Those bins are often located in centromeres and telomeres, both regions with high percentage of repetitive DNA regions.
 
 ```{r, Masking high variance bins, echo = FALSE, fig.width = 12, fig.height = 5}
 # One idea would be to clear single bins of single PON subjects where depth is below or above 99% of other subjects for that bin.
@@ -222,7 +222,7 @@ axis(4, 0:4, 0:4, las=2)
 ```
 
 
-```{r, Overview blocked bins, echo = FALSE, fig.width = 12, fig.height = 5, warning=F}
+```{r, Overview masked bins, echo = FALSE, fig.width = 12, fig.height = 5, warning=F}
 plot(pon$bin, pon$norm.clean.median*2,
      col=ifelse(pon$gc_blocked, ifelse(pon$var_blocked, "#aa33aa55", "#aa331155"), ifelse(pon$var_blocked, "#1133aa55", "#11111105")),
      ylim=c(0, 4), yaxs="i", pch=16,
@@ -237,24 +237,29 @@ axis(4, 0:4, 0:4, las=2)
 
 
 \newpage
-# Variance and normalized abundance after filtering
+
+# gc content in PON after masking of bins with deviating gc content
+
+This plot displays the gc content (x-axis) against variance (left plot) and ploidy (right plot) in normalised bin counts in PON after masking of bins with deviating gc content. gc content should not have any influence on the ploidy of the bins in chromosomes.
 
 ```{r, gc content after correction, echo = FALSE, fig.width = 7, fig.height = 3}
 par(mfrow=c(1,2))
 with(pon[!pon$blocked, ], {
-plot(gc, norm.clean.var, col="#11111105", pch=20, ylim=c(0.00001, 0.2), xlim=c(0.25, 0.6), xlab="GC-content", ylab="Variance", las = 1, cex = 0.5)
+plot(gc, norm.clean.var, col="#11111105", pch=20,
+     ylim=c(0.00001, 0.2), xlim=c(0.25, 0.6),
+     xlab="gc content", ylab="variance", las = 1, cex = 0.5)
 gc.var.clean = predict(loess(norm.clean.var ~ gc, pon[pon$gc > 0.33 & pon$gc < 0.6,], span=0.5), 330:550/1000)
 lines(330:550/1000, gc.var.clean, col="blue")
-plot(rep(gc, ncol(pon.norm)), c(as.matrix(pon.norm.clean[!pon$blocked, ])*pon$ploidy), pch=20, xlim=c(0.25, 0.6), ylim=c(0, 4),
-     col="#11111105", xlab="GC-content",
-     ylab="Ploidy", las = 1, cex = 0.5)
+plot(rep(gc, ncol(pon.norm)), c(as.matrix(pon.norm.clean[!pon$blocked, ])*pon$ploidy), pch=20, xlim=c(0.25, 0.6), ylim=c(0, 4), col="#11111105",
+     xlab="gc content", ylab="Ploidy", las = 1, cex = 0.5)
 abline(h=c(1.5, 2.5), col="red", lty=2)
 })
 ```
 
 
-# Filtered PON chromosomal overview
-The final filtered PON should exhibit a tight distribution around 2 for all chromosomes and should not exceed the red boundaries, in order to reliably call monoallelic deletions or insertions.
+# Overview over the final PON after masking of bins with deviating gc content, high variance or both
+
+The ploidy of reads located in chromosomes is displayed on the y-axis, the genomic coordinates in each chromosome on x-axis. The bins in PON should be located closely around the ploidy of 2.
 
 ```{r, corrected PON overview, echo = FALSE, fig.width = 12, fig.height = 5}
 plot(rep(pon$bin[!pon$blocked], nrow(meta)), c(as.matrix(pon.norm.clean[!pon$blocked, ])*2),

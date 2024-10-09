@@ -1,7 +1,9 @@
-**Table of contents**
+**Table of Contents**
 - [About `coriandR`](#about-coriandr)
   - [`coriandR` publications](#coriandr-publications)
 - [`coriandR` Installation](#coriandr-installation)
+  - [Native Installation](#native-installation)
+  - [Installation as Docker Container](#installation-as-docker-container)
 - [`coriandR` Usage](#coriandr-usage)
 - [References](#references)
 
@@ -12,7 +14,7 @@ _______________
 `coriandR` – ChrOmosomal abeRration Identifier AND Reporter in R – a tool for estimating the calculated karyotype and
 the copy number variations in the ultra low-coverage whole-genome sequencing data, which can be used in different aspects of genetic oncological diagnostics by low costs and a high accordance with the “gold standard” method of karyotyping - conventional cytogenetics. For the estimation of the calculated karyotype and the copy number variations of a blood or tumour tissue sample, a panel of normals is generated from sequencing data. The panel of normals samples come from the same tissue type (blood or histological tumor-free tissue samples) and were processed under the same conditions as the tumor samples and have a normal karyotype.
 
-ToDo picture with `coriandR` workflow
+![coriandR workflow](/documentation/images/workflow.png)
 
 After alignment with `Bowtie2`, these sequencing data are counted with `featureCounts` and normalised by the median sequencing depth per bin. The next step is standardization with calculation of the pseudo z-values of the distribution of the reads in the bins. Later they are compared with a theoretical normal distribution of the reads number in the bins. After excluding the bins with an abnormal GC-content and/or an abnormal variance, a panel of normals can be used for further calculations.
 
@@ -40,6 +42,8 @@ _______________
 
 ## `coriandR` Installation
 
+### Native Installation
+
 **Dependencies**
 
 - bowtie2 (Langmead and Salzberg 2012)
@@ -58,16 +62,12 @@ Adjust the paths to the files Bowtie2 index, gc-content, your PON table and bins
 
 Adjust the paths to Bowtie2, samtools, FeatureCounts and sam2bam.sh script.
 
+
+### Installation as Docker Container
+
 _______________
 
 ## `coriandR` Usage
-
-**Data preparation**
-
-The sequencing data from Illumina MiSeq was aligned to the reference genome with `Bowtie 2` (Langmead and Salzberg 2012) in paired-end mode (.fastq files). We used version GRCh38.p13 of the
-human genome from Genome Reference Consortium as reference genome for alignment. The data
-was converted to BAM format using `samtools` (Li 2011). We count the reads in the non-overlapping megabase sized bins using `featureCounts` (Liao et al. 2014).
-
 
 **Running the program**
 
@@ -90,7 +90,7 @@ was converted to BAM format using `samtools` (Li 2011). We count the reads in th
 3. To start the `coriandr.sh` tool, enter the following parameters in terminal: Sample ID; Path to sample meta file; FASTQ1: a path to the fastq-File with Read 1; FASTQ2: a path to the fastq-File with Read 2.
 **Example use:** 
     `bash coriander.sh 101010 /media/data/101010.meta.tsv /media/data/Fastq/101010_R1.fastq /media/data/Fastq/101010_R2.fastq`
-4. Thenafter you can find the created report in `./coriandR/output/SampleID` folder. The BAM files are automatically deleted.
+4. Now, you can find the created report in `./coriandR/output/SampleID` folder. The BAM files are automatically deleted.
 
 
 **Numerical Karyotype and CNAs estimation**

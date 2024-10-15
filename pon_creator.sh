@@ -8,7 +8,7 @@ fi
 printf "You started pon_creator.sh - a part of coriandR: ChrOmosomal abeRration Identifier AND Reporter in R.\n This skript creates a Panel of normals tables from paired-end fastq-files and create a report. \n \n"
 
 cp -p -v config.txt $2
-cp -p -v report.create.a.pon.and.stats.Rmd $2
+cp -p -v rscripts/report.create.a.pon.and.stats.Rmd $2
 
 printf "PON data ... "
 printf "$1\t" > $2/pon.data.tsv; printf "$2\t" >> $2/pon.data.tsv; printf $3 >> $2/pon.data.tsv

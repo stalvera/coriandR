@@ -25,7 +25,7 @@ printf "\033[1;32m Sample counts table \e[0m ... \n"
 featureCounts -a $gtf -o output/$1/patient.fc.tsv output/$1/patient.bam -T $(nproc) --countReadPairs -p 2> output/$1/logs.featureCounts.txt
 printf "was created with FeatureCounts\n \n"
 
-cp -p -v sample.report.Rmd output/$1/.
+cp -p -v rscripts/sample.report.Rmd output/$1/.
 
 printf "\033[1;32m Normalization of the raw reads to the ploidy, calculation of the normal distribution and the application of the Gauss test to determine the p-value, adjustment of the p-value with the Benjamini-Hochberg method, exclusion of the data points with an abnormal GC content and/or abnormal variance in R \e[0m ... \n"
 R -e "rmarkdown::render('output/$1/sample.report.Rmd')"

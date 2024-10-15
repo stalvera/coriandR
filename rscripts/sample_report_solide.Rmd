@@ -6,7 +6,7 @@ params:
   data: patient
 ---
 
-# Calculated Karyotyping for solid tunours
+# Calculated Karyotyping for solid tumours
 
 This report documents the calculated karyotyping and estimation of CNVs from sequencing data of solid tumours in research with `coriandR`. 
 
@@ -199,12 +199,12 @@ In the first step of calculated karyotyping, the sequencing data of a tumour sam
 In addition, we tested pseudo z-scores against a normal distribution with parameters of the PON in a two-tailed test. The obtained p-values were adjusted using the Benjamini-Hochberg method (Benjamini and Hochberg 1995) in control of the false discovery rate. In the second picture, an overview of normalised bins (data points) with expectes ploidy (y-axis) is shown across the chromosomal coordinates (x-axis). Bins with the read distribution outside the 99 % of the normal distribution are marked in red.
 
 
-```{r abberations in bins, echo = FALSE}
-# Definition of abberant bins in tumour sample
-# A deletion in a bin is detected if the normalized value for that bin is below the median for 
-# all normalized PON samples with a significance level of $\alpha$ = 0.05. 
-# An amplification leads to a value above the median.
-pon$aberration = factor(ifelse(pon$patient.norm > pon$norm.clean.median & pon$gauss.adjust < 0.05, 'amp', ifelse(pon$patient.norm < pon$norm.clean.median & pon$gauss.adjust < 0.05, 'del', 'normal')), levels = c('normal', 'amp', 'del'))
+```{r high level abberations in bins, echo = FALSE}
+# Definition of high level abberant bins in tumour sample since they are better targets for cancer therapy
+# A deletion in a bin is detected if the normalized value for that bin is below 0.5 * median for 
+# all normalized PON samples with a significance level of alpha = 0.05. 
+# An amplification leads to a value above 2.5 * median with a significance level of alpha = 0.05. 
+pon$aberration = factor(ifelse(pon$patient.norm > 2.5*pon$norm.clean.median & pon$gauss.adjust < 0.05, 'amp', ifelse(pon$patient.norm < 0.5*pon$norm.clean.median & pon$gauss.adjust < 0.05, 'del', 'normal')), levels = c('normal', 'amp', 'del'))
 ```
 
 ```{r gc content correlation, echo = FALSE}
@@ -303,8 +303,13 @@ International Standing Committee on Human Cytogenomic Nomenclature and McGowan-J
   special_genes$found = 0
   
   for(i in 1:nrow(special_genes)) {
-    genes.in.bin = pon[(pon$aberration != "normal" & pon$Chr == special_genes$chr[i] & pon$Start <= special_genes$start[i] & special_genes$start[i] <= pon$End) |
-                       (pon$aberration != "normal" & pon$Chr == special_genes$chr[i] & pon$Start <= special_genes$end[i] & special_genes$end[i] <= pon$End), ]
+    genes.in.bin = pon[(pon$aberration != "normal" & pon$Chr == special_genes$chr[i] & 
+                          pon$Start <= special_genes$start[i] & 
+                          special_genes$start[i] <= pon$End) |
+                       (pon$aberration != "normal" & 
+                        pon$Chr == special_genes$chr[i] & 
+                        pon$Start <= special_genes$end[i] & 
+                        special_genes$end[i] <= pon$End), ]
     
     if(nrow(genes.in.bin) == 0) {next}
     special_genes$found[i] = 1
@@ -333,7 +338,10 @@ par(mar=c(4, 4, 0.5, 5.5))
 
 for(i in unique(pon$Chr)) {
   with(pon[pon$Chr == i,], {
-    plot(Start, ifelse(patient.norm > 2.5, 5, patient.norm*2), col = ifelse(blocked, 0, c("black", "blue", "red")[aberration]), ylim=c(0,5), xlim=c(0,max(End)), xaxt='n', xaxs="i", xlab='', ylab='Ploidy', pch=ifelse(patient.norm > 2.5, 17, 20), las=2)
+    plot(Start, ifelse(patient.norm > 2.5, 5, patient.norm*2), 
+         col = ifelse(blocked, 0, c("black", "blue", "red")[aberration]), 
+         ylim=c(0,5), xlim=c(0,max(End)), xaxt='n', xaxs="i", xlab='', ylab='Ploidy', 
+         pch=ifelse(patient.norm > 2.5, 17, 20), las=2)
     segments(Start, (norm.clean.median+norm.clean.iqr)*2, Start, (norm.clean.median-norm.clean.iqr)*2, col="#aaaaaaaa")
     #mag = floor(log10(max(End)))
     #xmax = floor(max(End)/10^mag+1)*10^mag

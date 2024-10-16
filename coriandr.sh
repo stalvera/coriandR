@@ -19,47 +19,50 @@ mkdir -p output/$1
 cp -p -v $pon output/$1/pon.tsv
 cp -p -v $2 output/$1/patient.meta.tsv
 
-if [ $5 = 'standard']; then
+if [[ $5 = 'standard' ]]; then
 	printf "\n \n You started \033[1;36m coriandr.sh - a part of coriandR: ChrOmosomal abeRration Identifier AND Reporter in R in standard mode \e[0m.\n This skript identify copy-number variations (CNVs) in low-coverage whole-genome NGS data and creates a graphic pdf-report on the selected sample from paired-end FASTQ files. \n \n \n"
 	cp -p -v rscripts/sample.report.Rmd output/$1/.
 fi
 
-if [ $5 = 'solid']; then
+if [[ $5 = 'solid' ]]; then
 	printf "\n \n You started \033[1;36m coriandr.sh - a part of coriandR: ChrOmosomal abeRration Identifier AND Reporter in R in solid mode for estimation of only high level amplifications (> 5 copies) and deletions (< 0.5 copies) \e[0m.\n This skript identify copy-number variations (CNVs) in low-coverage whole-genome NGS data and creates a graphic pdf-report on the selected sample from paired-end FASTQ files. \n \n \n"
 	cp -p -v rscripts/sample_report_solid.Rmd output/$1/.
 fi
 
 printf "\033[1;32m Mapping statistics \e[0m (raw read pairs, average read length, unique mapping pairs) ... \n"
 printf "raw_read_pairs\t" > output/$1/mapping.stats.tsv; zcat $3 | awk 'NR%4==2{print}' | sort | uniq -c | wc -l >> output/$1/mapping.stats.tsv; zcat $3 | awk 'NR%4==2{a+=length($1)}END{print "average_read_length\t"(a/NR*4)}' >> output/$1/mapping.stats.tsv
-printf "were generated\n \n"
+printf "have been generated\n \n"
 
 printf "\033[1;32m Mapping with Bowtie2 in pair-end mode \e[0m ... \n"
 bowtie2 -x $index -p $(nproc) -1 $3 -2 $4 | bash sam2bam.sh output/$1/patient.bam 2> output/$1/logs.bowtie.txt
-printf "was successful\n \n"
+printf "has been successful\n \n"
 
 printf "\033[1;32m Sample counts table \e[0m ... \n"
 featureCounts -a $gtf -o output/$1/patient.fc.tsv output/$1/patient.bam -T $(nproc) --countReadPairs -p 2> output/$1/logs.featureCounts.txt
-printf "was created with FeatureCounts\n \n"
+printf "has been created with FeatureCounts\n \n"
 
-printf "\033[1;32m Normalization of the raw reads to the ploidy, calculation of the normal distribution and the application of the Gauss test to determine the p-value, adjustment of the p-value with the Benjamini-Hochberg method, exclusion of the data points with an abnormal GC content and/or abnormal variance in R \e[0m ... \n"
+printf "\033[1;32m Normalisation of the raw reads with the ploidy, Gauss test to determine the p-value, p-values adjustment with the Benjamini-Hochberg method, estimation of calculated karyotyping and CNVs in R \e[0m ... \n"
 
-if [ $5 = 'standard']; then
+if [[ $5 = 'standard' ]]; then
 	R -e "rmarkdown::render('output/$1/sample.report.Rmd')"
 	#pandoc --data-dir=pwd sample.report.Rmd # for manual tests
+	rm output/$1/sample.report.Rmd
 fi
 
-if [ $5 = 'solid']; then
+if [[ $5 = 'solid' ]]; then
 	R -e "rmarkdown::render('output/$1/sample_report_solid.Rmd')"
 	#pandoc --data-dir=pwd sample_report_solid.Rmd # for manual tests
+	rm output/$1/sample_report_solid.Rmd
 fi
 
-printf "was successful\n \n \n"
+printf "has been successful\n \n \n"
 
 printf "You can find the \033[1;33m coriandR sample report under Report_coriandR.pdf in folder ./coriandR/output/$1 \e[0m \n \n"
 
+# clean up
 rm output/$1/patient.bam
 rm output/$1/patient.bam.bai
-rm output/$1/sample.report.Rmd
-rm output/$1/sample.report.tex
+rm output/$1/patient.meta.tsv
+rm output/$1/pon.tsv
 
-printf "Sample BAM file was deleted. \n \n"
+printf "Intermediate files have been deleted. \n \n"

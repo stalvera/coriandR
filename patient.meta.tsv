@@ -1,6 +1,6 @@
-name 	AML6
+name 	120517
 gender 	male
 count_data 	patient.fc.tsv
 mapping_stats 	mapping.stats.tsv
 pon 	pon.tsv
-output_prefix 	/test_output
+output_prefix 	/120517

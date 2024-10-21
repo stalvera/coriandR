@@ -5,17 +5,19 @@
 # For generation of a new Panel of Normals (PON), you need ToDo.
 
 FROM rstudio/r-base:4.3-jammy
-RUN apt-get update && apt-get upgrade
+RUN apt-get update && apt-get -y upgrade
 RUN apt-get install -y bowtie2 samtools subread
 
 RUN set -e
-RUN Rscript -e "install.packages(c(`knitr`, `tinytex`, `rmarkdown`), repos='https://cran.rstudio.com')"
+RUN Rscript -e "install.packages('knitr',repos='https://cran.rstudio.com')"
+RUN Rscript -e "install.packages('tinytex',repos='https://cran.rstudio.com')"
+RUN Rscript -e "install.packages('rmarkdown',repos='https://cran.rstudio.com')"
 
-COPY ./tables/* ./rscripts/* ./config.txt ./coriandr.sh ./sam2bam.sh ./patient.meta.tsv /coriandr
+RUN mkdir /coriandr
+COPY ./coriandr.sh ./sam2bam.sh /coriandr
 WORKDIR /coriandr
 
-RUN chmod +x /coriandr/coriandr.sh
-ENTRYPOINT [ "/coriandr/coriandr.sh" ]
+ENTRYPOINT [ "bash coriandr.sh" ]
 # Docker will pass the arguments from 'docker run' to the CMD line.
 # It will override the arguments passed in the Dockerfile.
 CMD [ "SampleID", "Path_to_sample_meta_file", "FASTQ1", "FASTQ2", "Usage_mode" ]

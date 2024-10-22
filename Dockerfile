@@ -16,8 +16,10 @@ RUN Rscript -e "install.packages('rmarkdown',repos='https://cran.rstudio.com')"
 RUN mkdir /coriandr
 COPY ./coriandr.sh ./sam2bam.sh /coriandr
 WORKDIR /coriandr
+RUN chmod +x sam2bam.sh
+RUN chmod +x coriandr.sh
 
-ENTRYPOINT [ "bash coriandr.sh" ]
+ENTRYPOINT [ "bash", "coriandr.sh" ]
 # Docker will pass the arguments from 'docker run' to the CMD line.
 # It will override the arguments passed in the Dockerfile.
 CMD [ "SampleID", "Path_to_sample_meta_file", "FASTQ1", "FASTQ2", "Usage_mode" ]

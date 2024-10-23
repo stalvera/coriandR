@@ -13,7 +13,7 @@ This report documents the creation of the Panel of Normals (PON) from sequencing
 
 A panel of normals (PON) contains sequencing data from individuals with a normal karyotype who are representative for the analysed population. Multiple samples are used to compensate for or identify technical artefacts and normal biological variability. It is also important that the samples are obtained and processed under the same conditions (same sample preparation methods like DNA extraction and sequencing technology) as the test samples. Using the read depth method, distribution of the reads in samples can be calculated for PON and test samples, which can be used to estimate abberations like CNVs.
 
-```{r, include=FALSE}
+```{r, settings, include=FALSE}
 library(knitr)
 
 knitr::opts_chunk$set(warning = FALSE, message = FALSE) 

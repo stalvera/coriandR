@@ -76,7 +76,7 @@ cytobands$value = band_types[cytobands$Band.type, "value"]
 
 
 # List of relevant genes from German Network for Personalized Medicine
-# A list of genes of interest based on the research in germline tumour-detected variants in 49,264 cancer patients (Kuzbari et al. 2023) and genetic dysfunction across all human cancers (Sondka et al. 2018) as well as the database for FDA-recognised human genetic variants `OnkoKB` (Sarah et al. 2024) which can be used in the search for potential targets for the treatment of patients with solid tumours
+# The list of genes of interest based on the research in germline tumour-detected variants in 49,264 cancer patients (Kuzbari et al. 2023) and genetic dysfunction across all human cancers (Sondka et al. 2018) as well as the database for FDA-recognised human genetic variants `OnkoKB` (Sarah et al. 2024) which can be used in the search for potential targets for the treatment of patients with solid tumours
 # Kuzbari Z, Bandlamudi C, Loveday C, Garrett A, Mehine M, George A, Hanson H, Snape K, Kulkarni A, Allen S, Jezdic S, Ferrandino R, Westphalen CB, Castro E, Rodon J, Mateo J, Burghel GJ, Berger MF, Mandelker D, Turnbull C. Germline-focused analysis of tumour-detected variants in 49,264 cancer patients: ESMO Precision Medicine Working Group recommendations. Annals of Oncology. 2023 Mar 1;34(3):215-227. doi: 10.1016/j.annonc.2022.12.003.
 # Sondka Z, Bamford S, Cole CG, Ward SA, Dunham I, Forbes SA. The COSMIC Cancer Gene Census: describing genetic dysfunction across all human cancers. Nat Rev Cancer. 2018 Nov;18(11):696-705. doi: 10.1038/s41568-018-0060-1. PMID: 30293088; PMCID: PMC6450507.
 # Sarah P. Suehnholz, Moriah H. Nissan, Hongxin Zhang, Ritika Kundra, Subhiksha Nandakumar, Calvin Lu, Stephanie Carrero, Amanda Dhaneshwar, Nicole Fernandez, Benjamin W. Xu, Maria E. Arcila, Ahmet Zehir, Aijazuddin Syed, A. Rose Brannon, Julia E. Rudolph, Eder Paraiso, Paul J. Sabbatini, Ross L. Levine, Ahmet Dogan, Jianjiong Gao, Marc Ladanyi, Alexander Drilon, Michael F. Berger, David B. Solit, Nikolaus Schultz, Debyani Chakravarty; Quantifying the Expanding Landscape of Clinical Actionability for Patients with Cancer. Cancer Discov 1 January 2024; 14 (1): 49–65. https://doi.org/10.1158/2159-8290.CD-23-0467
@@ -324,9 +324,13 @@ reported_genes$end = format(reported_genes$end, decimal.mark = ",", big.mark = "
 kable(reported_genes[ , 1:6], align = "lllrrl")
 ```
 
-Bailey et al. (2018): Comprehensive Characterization of Cancer Driver Genes and Mutations. Cell 173 (2), 371-385.e18. DOI: 10.1016/j.cell.2018.02.060.;
+The used list of genes of interest is based on the research in germline tumour-detected variants in 49,264 cancer patients (Kuzbari et al. 2023) and genetic dysfunction across all human cancers (Sondka et al. 2018) as well as the database for FDA-recognised human genetic variants `OnkoKB` (Sarah et al. 2024) which can be used in research for potential targets for the treatment of patients with solid tumours.
 
-Papaemmanuil et al. (2016): Genomic Classification and Prognosis in Acute Myeloid Leukemia. The New England journal of medicine 374 (23), S. 2209–2221. DOI:10.1056/NEJMoa1516192.
+Kuzbari Z, Bandlamudi C, Loveday C, Garrett A, Mehine M, George A, Hanson H, Snape K, Kulkarni A, Allen S, Jezdic S, Ferrandino R, Westphalen CB, Castro E, Rodon J, Mateo J, Burghel GJ, Berger MF, Mandelker D, Turnbull C. Germline-focused analysis of tumour-detected variants in 49,264 cancer patients: ESMO Precision Medicine Working Group recommendations. Annals of Oncology. 2023 Mar 1;34(3):215-227. doi: 10.1016/j.annonc.2022.12.003.
+
+Sondka Z, Bamford S, Cole CG, Ward SA, Dunham I, Forbes SA. The COSMIC Cancer Gene Census: describing genetic dysfunction across all human cancers. Nat Rev Cancer. 2018 Nov;18(11):696-705. doi: 10.1038/s41568-018-0060-1. PMID: 30293088; PMCID: PMC6450507.
+
+Sarah P. Suehnholz, Moriah H. Nissan, Hongxin Zhang, Ritika Kundra, Subhiksha Nandakumar, Calvin Lu, Stephanie Carrero, Amanda Dhaneshwar, Nicole Fernandez, Benjamin W. Xu, Maria E. Arcila, Ahmet Zehir, Aijazuddin Syed, A. Rose Brannon, Julia E. Rudolph, Eder Paraiso, Paul J. Sabbatini, Ross L. Levine, Ahmet Dogan, Jianjiong Gao, Marc Ladanyi, Alexander Drilon, Michael F. Berger, David B. Solit, Nikolaus Schultz, Debyani Chakravarty; Quantifying the Expanding Landscape of Clinical Actionability for Patients with Cancer. Cancer Discov 1 January 2024; 14 (1): 49–65. https://doi.org/10.1158/2159-8290.CD-23-0467
 
 \newpage
 
